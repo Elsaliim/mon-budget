@@ -287,7 +287,7 @@
     <div class="sidemenu-divider"></div>
     <div class="sidemenu-section">Paramètres</div>
     <button class="sidemenu-item" onclick="openMenuPage('categories')">
-      <div class="si-icon" style="background:#EEEDFE;">🏷️</div>
+      <div class="si-icon" style="background:#EEEDFE;">🔖</div>
       <div><div class="si-label">Catégories</div><div class="si-sub">Ajouter, modifier…</div></div>
     </button>
     <div class="sidemenu-divider"></div>
@@ -326,7 +326,7 @@
       <div class="card" style="background:linear-gradient(135deg,#639922,#8BBF3A);color:white;padding:16px 20px;margin-bottom:12px;cursor:pointer;-webkit-tap-highlight-color:transparent;" onclick="openEpargneDetail()">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;">
           <div style="font-size:12px;opacity:.8;margin-bottom:4px;">💰 Épargne totale cumulée</div>
-          <div style="font-size:11px;opacity:.7;background:rgba(255,255,255,.2);padding:3px 8px;border-radius:10px;">Voir détail →</div>
+          <div style="font-size:11px;opacity:.7;background:rgba(255,255,255,.2);padding:3px 8px;border-radius:10px;">Voir détail -></div>
         </div>
         <div style="font-size:30px;font-weight:700;letter-spacing:-0.5px;" id="h-ep-cumul">0 €</div>
         <div style="display:flex;gap:16px;margin-top:8px;">
@@ -412,7 +412,7 @@
 
     <!-- CATEGORIES -->
     <div class="page" id="page-categories">
-      <div class="row-between" style="margin-bottom:14px;"><div style="font-size:18px;font-weight:600;">🏷️ Catégories</div><button class="btn btn-p btn-sm" onclick="openCatModal(null)">+ Nouvelle</button></div>
+      <div class="row-between" style="margin-bottom:14px;"><div style="font-size:18px;font-weight:600;">🔖 Catégories</div><button class="btn btn-p btn-sm" onclick="openCatModal(null)">+ Nouvelle</button></div>
       <div class="card"><div id="cat-list"></div></div>
     </div>
   </div>
@@ -485,7 +485,7 @@
   <div class="modal-box">
     <div class="modal-title" id="cm-title">Nouvelle catégorie</div>
     <div class="fgroup" style="display:flex;align-items:center;gap:12px;margin-top:12px;">
-      <div><div class="flabel">Émoji</div><div class="emoji-preview" id="cm-ep" onclick="toggleEP('cm')">🏷️</div></div>
+      <div><div class="flabel">Émoji</div><div class="emoji-preview" id="cm-ep" onclick="toggleEP('cm')">🔖</div></div>
       <div style="flex:1;"><div class="flabel">Nom</div><input type="text" id="cm-name" placeholder="Ex : Sport…"/></div>
     </div>
     <div id="cm-ep-picker" style="display:none;margin-bottom:14px;"><div class="emoji-grid" id="cm-eg"></div></div>
@@ -543,9 +543,173 @@ const SUPA_KEY = 'sb_publishable_cPwIl9SFjacHj4UaTld2LA_ZhBI7I_A';
 const supa = supabase.createClient(SUPA_URL, SUPA_KEY);
 
 // -- EMOJI LIB --
-const EMOJIS=['🛒','🏠','🚌','🎮','💊','👕','💰','🍽️','📱','✈️','🐾','🚗','🎬','🎵','📚','🏋️','🌿','🧴','🎁','💆','🍕','☕','🍺','🎨','🏖️','🌍','🛠️','💡','🧹','🧺','🏦','💳','📦','🎓','🖥️','⚽','🎸','🧸','🎪','🌸','🚀','🏥','🧃','🍎','🐶','🐱','🌊','🎭','🎯','🔑','🧠','❤️','⭐','🔥','💎','🌙','🌞','🎊','🎀','🍀','🔁','📅','🏡','💼','🎉','🛍️','🧾','💸','🏷️','🪴'];
+const EMOJIS=['🛒','🏠','🚌','🎮','💊','👕','💰','🍽','📱','🛫','🐾','🚗','🎬','🎵','📚','🏋','🌿','🧴','🎁','💆','🍕','🍵','🍺','🎨','🏖','🌍','🛠','💡','🧹','🧺','🏦','💳','📦','🎓','🖥','🏈','🎸','🧸','🎪','🌸','🚀','🏥','🧃','🍎','🐶','🐱','🌊','🎭','🎯','🔑','🧠','💜','🌟','🔥','💎','🌙','🌞','🎊','🎀','🍀','🔁','📅','🏡','💼','🎉','🛍','🧾','💸','🔖','🪴'];
 
 // -- DEFAULT CATS --
+// -- BRAND DETECTION --
+const BRAND_MAP = [
+  // Streaming
+  {keys:['netflix'],domain:'netflix.com',emoji:'🎬'},
+  {keys:['disney','disney+'],domain:'disney.com',emoji:'🏰'},
+  {keys:['spotify'],domain:'spotify.com',emoji:'🎵'},
+  {keys:['deezer'],domain:'deezer.com',emoji:'🎵'},
+  {keys:['youtube','youtube premium'],domain:'youtube.com',emoji:'🎬'},
+  {keys:['amazon prime','prime video','amazon'],domain:'amazon.com',emoji:'📦'},
+  {keys:['apple','itunes','icloud','apple tv'],domain:'apple.com',emoji:'🍎'},
+  {keys:['canal','canal+'],domain:'canalplus.com',emoji:'📺'},
+  {keys:['ocs'],domain:'ocs.fr',emoji:'📺'},
+  {keys:['hbo','max'],domain:'hbomax.com',emoji:'🎬'},
+  {keys:['twitch'],domain:'twitch.tv',emoji:'🎮'},
+  // Jeux
+  {keys:['dofus','ankama'],domain:'ankama.com',emoji:'🔋'},
+  {keys:['steam'],domain:'store.steampowered.com',emoji:'🎮'},
+  {keys:['playstation','psn','ps plus'],domain:'playstation.com',emoji:'🎮'},
+  {keys:['xbox','game pass'],domain:'xbox.com',emoji:'🎮'},
+  {keys:['nintendo'],domain:'nintendo.com',emoji:'🎮'},
+  {keys:['epic games','fortnite'],domain:'epicgames.com',emoji:'🎮'},
+  {keys:['ubisoft'],domain:'ubisoft.com',emoji:'🎮'},
+  // Telecom
+  {keys:['bouygues','bytel'],domain:'bouyguestelecom.fr',emoji:'📱'},
+  {keys:['orange'],domain:'orange.fr',emoji:'📱'},
+  {keys:['sfr'],domain:'sfr.fr',emoji:'📱'},
+  {keys:['free','freemobile','free mobile'],domain:'free.fr',emoji:'📱'},
+  {keys:['sosh'],domain:'sosh.fr',emoji:'📱'},
+  {keys:['red by sfr','red sfr'],domain:'red-by-sfr.fr',emoji:'📱'},
+  // Energie & Services
+  {keys:['edf'],domain:'edf.fr',emoji:'🔋'},
+  {keys:['engie'],domain:'engie.fr',emoji:'🔋'},
+  {keys:['total','totalenergies'],domain:'totalenergies.com',emoji:'🚗'},
+  {keys:['veolia'],domain:'veolia.com',emoji:'💧'},
+  {keys:['suez'],domain:'suez.com',emoji:'💧'},
+  // Banque & Finance
+  {keys:['paypal'],domain:'paypal.com',emoji:'💳'},
+  {keys:['revolut'],domain:'revolut.com',emoji:'💳'},
+  {keys:['n26'],domain:'n26.com',emoji:'💳'},
+  {keys:['lydia'],domain:'lydia-app.com',emoji:'💳'},
+  {keys:['boursorama','boursobank'],domain:'boursorama.com',emoji:'🏦'},
+  {keys:['lcl'],domain:'lcl.fr',emoji:'🏦'},
+  {keys:['bnp','bnp paribas'],domain:'bnpparibas.fr',emoji:'🏦'},
+  {keys:['credit agricole','crédit agricole'],domain:'credit-agricole.fr',emoji:'🏦'},
+  {keys:['societe generale','société générale'],domain:'societegenerale.fr',emoji:'🏦'},
+  {keys:['caisse epargne','caisse epargne'],domain:'caisse-epargne.fr',emoji:'🏦'},
+  {keys:['alan'],domain:'alan.com',emoji:'💊'},
+  // Transport
+  {keys:['sncf','tgv','ter ','intercités'],domain:'sncf.com',emoji:'🚂'},
+  {keys:['ratp'],domain:'ratp.fr',emoji:'🚇'},
+  {keys:['uber'],domain:'uber.com',emoji:'🚗'},
+  {keys:['blablacar'],domain:'blablacar.fr',emoji:'🚗'},
+  {keys:['navigo'],domain:'navigo.fr',emoji:'🚇'},
+  {keys:['flixbus'],domain:'flixbus.fr',emoji:'🚌'},
+  {keys:['ouigo'],domain:'ouigo.com',emoji:'🚂'},
+  {keys:['air france'],domain:'airfrance.fr',emoji:'🛫'},
+  {keys:['easyjet'],domain:'easyjet.com',emoji:'🛫'},
+  {keys:['ryanair'],domain:'ryanair.com',emoji:'🛫'},
+  // Alimentaire
+  {keys:['carrefour'],domain:'carrefour.fr',emoji:'🛒'},
+  {keys:['leclerc','e.leclerc'],domain:'e.leclerc',emoji:'🛒'},
+  {keys:['lidl'],domain:'lidl.fr',emoji:'🛒'},
+  {keys:['aldi'],domain:'aldi.fr',emoji:'🛒'},
+  {keys:['intermarché'],domain:'intermarche.com',emoji:'🛒'},
+  {keys:['auchan'],domain:'auchan.fr',emoji:'🛒'},
+  {keys:['monoprix'],domain:'monoprix.fr',emoji:'🛒'},
+  {keys:['franprix'],domain:'franprix.fr',emoji:'🛒'},
+  {keys:['casino'],domain:'groupe-casino.fr',emoji:'🛒'},
+  {keys:['picard'],domain:'picard.fr',emoji:'🌨'},
+  {keys:['uber eats','ubereats'],domain:'ubereats.com',emoji:'🍔'},
+  {keys:['deliveroo'],domain:'deliveroo.fr',emoji:'🍔'},
+  {keys:['just eat'],domain:'just-eat.fr',emoji:'🍔'},
+  {keys:['mcdonalds','mcdonald','mc donald'],domain:'mcdonalds.fr',emoji:'🍔'},
+  // Shopping
+  {keys:['amazon'],domain:'amazon.fr',emoji:'📦'},
+  {keys:['fnac'],domain:'fnac.com',emoji:'📚'},
+  {keys:['darty'],domain:'darty.com',emoji:'🔌'},
+  {keys:['boulanger'],domain:'boulanger.com',emoji:'🔌'},
+  {keys:['zara'],domain:'zara.com',emoji:'👕'},
+  {keys:['h&m','hm'],domain:'hm.com',emoji:'👕'},
+  {keys:['shein'],domain:'shein.com',emoji:'👗'},
+  {keys:['asos'],domain:'asos.com',emoji:'👗'},
+  {keys:['vinted'],domain:'vinted.fr',emoji:'👕'},
+  {keys:['leboncoin'],domain:'leboncoin.fr',emoji:'🔖'},
+  // Santé & Sport
+  {keys:['doctolib'],domain:'doctolib.fr',emoji:'🏥'},
+  {keys:['decathlon'],domain:'decathlon.fr',emoji:'🏈'},
+  {keys:['basic fit','basic-fit'],domain:'basic-fit.com',emoji:'🏋'},
+  {keys:['salle de sport','gym','fitness'],domain:null,emoji:'🏋'},
+  // Assurance & Mutuelle
+  {keys:['maif'],domain:'maif.fr',emoji:'🛡'},
+  {keys:['macif'],domain:'macif.fr',emoji:'🛡'},
+  {keys:['axa'],domain:'axa.fr',emoji:'🛡'},
+  {keys:['allianz'],domain:'allianz.fr',emoji:'🛡'},
+  {keys:['mgen'],domain:'mgen.fr',emoji:'💊'},
+  {keys:['malakoff'],domain:'malakoffhumanis.com',emoji:'💊'},
+  // Tech & Cloud
+  {keys:['google','google one'],domain:'google.com',emoji:'🔍'},
+  {keys:['microsoft','office 365','office365','m365'],domain:'microsoft.com',emoji:'💻'},
+  {keys:['dropbox'],domain:'dropbox.com',emoji:'📁'},
+  {keys:['adobe','photoshop','illustrator'],domain:'adobe.com',emoji:'🎨'},
+  {keys:['notion'],domain:'notion.so',emoji:'📝'},
+  {keys:['slack'],domain:'slack.com',emoji:'💬'},
+  {keys:['github'],domain:'github.com',emoji:'💻'},
+  {keys:['chatgpt','openai'],domain:'openai.com',emoji:'🤖'},
+  {keys:['anthropic','claude'],domain:'anthropic.com',emoji:'🤖'},
+];
+
+// Logo cache to avoid redundant fetches
+const LOGO_CACHE = {};
+
+function detectBrand(description) {
+  if(!description) return null;
+  const lower = description.toLowerCase();
+  for(const brand of BRAND_MAP) {
+    for(const key of brand.keys) {
+      if(lower.includes(key.toLowerCase())) return brand;
+    }
+  }
+  return null;
+}
+
+function getBrandLogoUrl(domain) {
+  if(!domain) return null;
+  return `https://logo.clearbit.com/${domain}`;
+}
+
+
+function renderBrandIcon(container, description, fallbackIcon, fallbackBg, size=40) {
+  const brand = detectBrand(description);
+  if(brand && brand.domain) {
+    const logoUrl = getBrandLogoUrl(brand.domain);
+    const cacheKey = brand.domain;
+    if(LOGO_CACHE[cacheKey] === false) {
+      // Known to fail, use emoji
+      container.textContent = brand.emoji || fallbackIcon;
+      container.style.background = fallbackBg;
+      container.style.fontSize = Math.round(size*0.45)+'px';
+    } else {
+      const img = document.createElement('img');
+      img.style.cssText = `width:${Math.round(size*0.65)}px;height:${Math.round(size*0.65)}px;object-fit:contain;border-radius:4px;`;
+      img.onload = () => { LOGO_CACHE[cacheKey] = true; };
+      img.onerror = () => {
+        LOGO_CACHE[cacheKey] = false;
+        container.innerHTML = '';
+        container.textContent = brand.emoji || fallbackIcon;
+        container.style.background = fallbackBg;
+        container.style.fontSize = Math.round(size*0.45)+'px';
+      };
+      img.src = logoUrl;
+      container.innerHTML = '';
+      container.style.background = '#fff';
+      container.appendChild(img);
+    }
+  } else if(brand) {
+    container.textContent = brand.emoji || fallbackIcon;
+    container.style.background = fallbackBg;
+    container.style.fontSize = Math.round(size*0.45)+'px';
+  } else {
+    container.textContent = fallbackIcon;
+    container.style.background = fallbackBg;
+  }
+}
+
 const CAT_SAVINGS='Épargne';
 const DEF_CATS=[
   {name:'Alimentation',icon:'🛒',color:'#7F77DD',budget:300},
@@ -555,9 +719,9 @@ const DEF_CATS=[
   {name:'Santé',icon:'💊',color:'#D4537E',budget:50},
   {name:'Vêtements',icon:'👕',color:'#EF9F27',budget:60},
   {name:CAT_SAVINGS,icon:'💰',color:'#639922',budget:200},
-  {name:'Restaurants',icon:'🍽️',color:'#888780',budget:100},
+  {name:'Restaurants',icon:'🍽',color:'#888780',budget:100},
   {name:'Abonnements',icon:'📱',color:'#534AB7',budget:40},
-  {name:'Voyages',icon:'✈️',color:'#E24B4A',budget:150},
+  {name:'Voyages',icon:'🛫',color:'#E24B4A',budget:150},
 ];
 const COLOR_POOL=['#7F77DD','#1D9E75','#378ADD','#D85A30','#D4537E','#EF9F27','#639922','#888780','#534AB7','#E24B4A'];
 const MONTHS_FR=['Janv.','Févr.','Mars','Avr.','Mai','Juin','Juil.','Août','Sept.','Oct.','Nov.','Déc.'];
@@ -599,7 +763,7 @@ async function handleAuth(){
     const name=document.getElementById('auth-name').value.trim();
     const{error}=await supa.auth.signUp({email,password,options:{data:{full_name:name}}});
     if(error){errEl.textContent=error.message;errEl.classList.add('show');document.getElementById('auth-submit-btn').textContent='Créer mon compte';}
-    else{errEl.style.background='var(--gl)';errEl.style.color='var(--g)';errEl.textContent='✓ Compte créé ! Vérifiez vos emails pour confirmer.';errEl.classList.add('show');document.getElementById('auth-submit-btn').textContent='Créer mon compte';}
+    else{errEl.style.background='var(--gl)';errEl.style.color='var(--g)';errEl.textContent='OK Compte créé ! Vérifiez vos emails pour confirmer.';errEl.classList.add('show');document.getElementById('auth-submit-btn').textContent='Créer mon compte';}
   }
 }
 
@@ -620,7 +784,7 @@ async function init(){
     if(!appReady){
       document.getElementById('loading-screen').classList.add('hidden');
       document.getElementById('auth-screen').classList.remove('hidden');
-      toast('⚠️ Connexion lente, réessayez');
+      toast('(!) Connexion lente, réessayez');
     }
   }, 8000);
 
@@ -727,7 +891,7 @@ async function loadAllData(){
     // Migrate localStorage if exists
     await migrateFromLocalStorage();
     setSyncState('ok');
-  }catch(e){setSyncState('error');toast('⚠️ Erreur de connexion')}
+  }catch(e){setSyncState('error');toast('(!) Erreur de connexion')}
 }
 
 async function seedCategories(){
@@ -747,7 +911,7 @@ async function migrateFromLocalStorage(){
     if(toInsert.length>0){
       const{data}=await supa.from('transactions').insert(toInsert).select();
       if(data)TX=[...data,...TX];
-      toast(`✓ ${toInsert.length} transactions importées`);
+      toast(`OK ${toInsert.length} transactions importées`);
     }
   }
   if(oldRecur.length>0){
@@ -889,22 +1053,22 @@ async function addTransaction(){
   const desc=document.getElementById('a-desc').value.trim();
   const catVal=document.getElementById('a-cat').value;
   const date=document.getElementById('a-date').value;
-  if(!amount||amount<=0){toast('⚠️ Montant invalide');return}
-  if(!desc){toast('⚠️ Description manquante');return}
+  if(!amount||amount<=0){toast('(!) Montant invalide');return}
+  if(!desc){toast('(!) Description manquante');return}
   if(addType==='sav'){
     if(catVal==='sav_in'){
       // Virement épargne: 1 dépense (diminue solde) + 1 entrée épargne interne
       await dbAddTx({type:'dep',amount,description:desc,cat:CAT_SAVINGS,date,auto:false,sav_type:'in'});
-      toast('✓ Virement épargne enregistré');
+      toast('OK Virement épargne enregistré');
     }else{
       // Retrait épargne: 1 revenu (augmente solde) + 1 sortie épargne interne
       await dbAddTx({type:'rev',amount,description:desc,cat:CAT_SAVINGS,date,auto:false,sav_type:'out'});
-      toast('✓ Retrait épargne enregistré');
+      toast('OK Retrait épargne enregistré');
     }
   }else{
     const cat=addType==='rev'?'Revenu':catVal;
     await dbAddTx({type:addType,amount,description:desc,cat,date,auto:false});
-    toast(addType==='dep'?'✓ Dépense ajoutée':'✓ Revenu ajouté');
+    toast(addType==='dep'?'OK Dépense ajoutée':'OK Revenu ajouté');
   }
   document.getElementById('a-amount').value='';document.getElementById('a-desc').value='';
   updateAll();goPage('home');
@@ -916,7 +1080,7 @@ function openTxEdit(id){
   const t=TX.find(t=>t.id==id);if(!t)return;
   editingTxId=id;
   document.getElementById('tx-modal-title').textContent=t.auto?'Modifier (ce mois uniquement)':'Modifier';
-  document.getElementById('tx-modal-sub').textContent=t.auto?'⚠️ Modifie uniquement cette occurrence, pas le récurrent.':'';
+  document.getElementById('tx-modal-sub').textContent=t.auto?'(!) Modifie uniquement cette occurrence, pas le récurrent.':'';
   document.getElementById('tx-amount').value=t.amount;
   document.getElementById('tx-desc').value=t.description;
   document.getElementById('tx-date').value=t.date;
@@ -930,9 +1094,9 @@ async function saveTxEdit(){
   const desc=document.getElementById('tx-desc').value.trim();
   const date=document.getElementById('tx-date').value;
   const cat=t.type==='rev'?t.cat:document.getElementById('tx-cat').value;
-  if(!amount||!desc){toast('⚠️ Champs manquants');return}
+  if(!amount||!desc){toast('(!) Champs manquants');return}
   await dbUpdateTx(editingTxId,{amount,description:desc,date,cat});
-  closeModal('tx-modal');toast('✓ Transaction mise à jour');updateAll();
+  closeModal('tx-modal');toast('OK Transaction mise à jour');updateAll();
 }
 async function deleteTx(){
   await dbDeleteTx(editingTxId);
@@ -988,18 +1152,21 @@ function updateHome(){
   if(!mTx.length){c.innerHTML='<div class="empty"><div class="ei">💳</div>Aucune transaction pour ce mois.</div>';return}
   mTx.forEach(t=>{
     const cat=catOf(t.cat);const d=document.createElement('div');d.className='tx-item';
-    // Determine display based on sav_type
     const isSavIn=t.sav_type==='in';
     const isSavOut=t.sav_type==='out';
-    const icon=isSavIn?'💰':isSavOut?'💸':(t.type==='rev'?'💼':cat.icon);
-    const ibg=isSavIn?'#EAF3DE':isSavOut?'#FCEBEB':(t.type==='rev'?'#EAF3DE':(cat.color||'#7F77DD')+'22');
     const ds=new Date(t.date+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
     const autoTag=t.auto?'<span class="auto-tag">🔁</span>':'';
-    // sav_in: -amount (leaves wallet), sav_out: shown as transfer back
     const displayNeg=t.type==='dep'||isSavIn;
-    const savLabel=isSavIn?'<span class="auto-tag">→ Épargne</span>':isSavOut?'<span class="auto-tag">← Épargne</span>':'';
+    const savLabel=isSavIn?'<span class="auto-tag">-> Épargne</span>':isSavOut?'<span class="auto-tag"><- Épargne</span>':'';
     const subcat=isSavIn||isSavOut?'Épargne':t.cat;
-    d.innerHTML=`<div class="tx-ico" style="background:${ibg};">${icon}</div><div class="tx-info"><div class="tx-name">${t.description}${autoTag}${savLabel}</div><div class="tx-date">${subcat} · ${ds}</div></div><div class="tx-amt ${displayNeg?'neg':'pos'}">${displayNeg?'-':'+'}${fmt(t.amount)}</div>`;
+    const fallbackIcon=isSavIn?'💰':isSavOut?'💸':(t.type==='rev'?'💼':cat.icon);
+    const fallbackBg=isSavIn?'#EAF3DE':isSavOut?'#FCEBEB':(t.type==='rev'?'#EAF3DE':(cat.color||'#7F77DD')+'22');
+    d.innerHTML=`<div class="tx-ico" id="ico-${t.id}" style="display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;font-size:18px;flex-shrink:0;background:${fallbackBg};">${fallbackIcon}</div><div class="tx-info"><div class="tx-name">${t.description}${autoTag}${savLabel}</div><div class="tx-date">${subcat} · ${ds}</div></div><div class="tx-amt ${displayNeg?'neg':'pos'}">${displayNeg?'-':'+'}${fmt(t.amount)}</div>`;
+    // Apply brand logo after element is in DOM
+    requestAnimationFrame(()=>{
+      const ico=document.getElementById('ico-'+t.id);
+      if(ico&&!isSavIn&&!isSavOut)renderBrandIcon(ico,t.description,fallbackIcon,fallbackBg,40);
+    });
     d.onclick=()=>openTxEdit(t.id);c.appendChild(d);
   });
 }
@@ -1013,7 +1180,7 @@ function updateBudget(){
   const totalSpent=Object.values(byCat).reduce((s,v)=>s+v,0);
   const totalPct=totalBudget>0?Math.min(100,Math.round((totalSpent/totalBudget)*100)):0;
   const totalBc=totalPct>=100?'#E24B4A':totalPct>=80?'#EF9F27':'#7F77DD';
-  list.innerHTML=`<div class="row-between" style="margin-bottom:12px;"><span class="sec-title" style="margin-bottom:0;">Suivi mensuel</span><span style="font-size:11px;color:var(--t2);">✏️ pour modifier</span></div>
+  list.innerHTML=`<div class="row-between" style="margin-bottom:12px;"><span class="sec-title" style="margin-bottom:0;">Suivi mensuel</span><span style="font-size:11px;color:var(--t2);">🖊 pour modifier</span></div>
     <div style="background:var(--s2);border-radius:var(--rsm);padding:14px;margin-bottom:14px;">
       <div class="row-between" style="margin-bottom:8px;">
         <span style="font-size:13px;font-weight:600;color:var(--t);">Total global</span>
@@ -1029,19 +1196,19 @@ function updateBudget(){
     const share=totalBudget>0?Math.round((cat.budget/totalBudget)*100):0;
     const bc=pct>=100?'#E24B4A':pct>=80?'#EF9F27':(cat.color||'#7F77DD');
     const item=document.createElement('div');item.className='budget-item';item.style.cursor='pointer';item.onclick=(e)=>{if(!e.target.closest('.icon-btn'))openCatDetail(cat.name)};
-    item.innerHTML=`<div class="bh"><div class="bname">${cat.icon} ${cat.name}</div><div class="bright"><div class="bamts">${fmt(spent)} / ${fmt(cat.budget)}</div><span style="font-size:10px;background:var(--pl);color:var(--pd);padding:2px 6px;border-radius:8px;font-weight:600;">${share}%</span><button class="icon-btn" onclick="openBudgetModal('${cat.name}')">✏️</button></div></div><div class="bar-bg"><div class="bar-fill" style="width:${pctBar}%;background:${bc};"></div></div>`;
+    item.innerHTML=`<div class="bh"><div class="bname">${cat.icon} ${cat.name}</div><div class="bright"><div class="bamts">${fmt(spent)} / ${fmt(cat.budget)}</div><span style="font-size:10px;background:var(--pl);color:var(--pd);padding:2px 6px;border-radius:8px;font-weight:600;">${share}%</span><button class="icon-btn" onclick="openBudgetModal('${cat.name}')">🖊</button></div></div><div class="bar-bg"><div class="bar-fill" style="width:${pctBar}%;background:${bc};"></div></div>`;
     list.appendChild(item);
     if(pct>=80){hasAl=true;const a=document.createElement('div');a.className='alert-row';const realPct=cat.budget>0?Math.round((spent/cat.budget)*100):0;
-      const label=realPct>=100?(realPct===100?'💸 Budget épuisé':'📛 Dépassé de '+(realPct-100)+'%'):'⚠️ '+realPct+'%';a.innerHTML=`<span style="font-size:14px;font-weight:500;">${cat.icon} ${cat.name}</span><span class="badge ${realPct>=100?'bdanger':'bwarn'}">${label}</span>`;al.appendChild(a);}
+      const label=realPct>=100?(realPct===100?'💸 Budget épuisé':'📛 Dépassé de '+(realPct-100)+'%'):'(!) '+realPct+'%';a.innerHTML=`<span style="font-size:14px;font-weight:500;">${cat.icon} ${cat.name}</span><span class="badge ${realPct>=100?'bdanger':'bwarn'}">${label}</span>`;al.appendChild(a);}
   });
   if(!hasAl)al.innerHTML='<div class="empty" style="padding:14px 0;"><div class="ei">🎉</div>Aucune alerte !</div>';
 }
 
 function openBudgetModal(name){editingBudgetCat=name;const c=catOf(name);document.getElementById('bm-title').textContent=`${c.icon} ${name}`;document.getElementById('bm-sub').textContent=`Budget actuel : ${fmt(c.budget)} / mois`;document.getElementById('bm-input').value=c.budget;document.getElementById('bm-modal').classList.add('open');setTimeout(()=>document.getElementById('bm-input').select(),150)}
 async function saveBudgetEdit(){
-  const val=parseFloat(document.getElementById('bm-input').value);if(!val||val<=0){toast('⚠️ Invalide');return}
+  const val=parseFloat(document.getElementById('bm-input').value);if(!val||val<=0){toast('(!) Invalide');return}
   const c=CATS.find(c=>c.name===editingBudgetCat);if(c){c.budget=val;await dbUpsertCat(c);}
-  closeModal('bm-modal');toast(`✓ Budget mis à jour`);updateBudget();
+  closeModal('bm-modal');toast(`OK Budget mis à jour`);updateBudget();
 }
 
 // -- RECUR --
@@ -1057,7 +1224,7 @@ function updateRecurPage(rtype){
   if(!filtered.length){list.innerHTML=`<div class="empty"><div class="ei">${isDep?'🏠':'💼'}</div>Aucun récurrent.</div>`;return}
   filtered.forEach(r=>{
     const cat=catOf(r.cat);const d=document.createElement('div');d.className='recur-item';
-    d.innerHTML=`<div class="recur-ico" style="background:${(cat.color||'#7F77DD')}22;">${r.icon||'🔁'}</div><div class="recur-info"><div class="recur-name">${r.name}</div><div class="recur-meta">${r.cat} · le ${r.day}${r.start?' · dès '+r.start:''}${r.end?' → '+r.end:''}</div></div><div class="recur-amt ${isDep?'neg':'pos'}">${isDep?'-':'+'}${fmt(r.amount)}</div><button class="icon-btn" onclick="openRecurModal('${r.id}',null)">✏️</button>`;
+    d.innerHTML=`<div class="recur-ico" style="background:${(cat.color||'#7F77DD')}22;">${r.icon||'🔁'}</div><div class="recur-info"><div class="recur-name">${r.name}</div><div class="recur-meta">${r.cat} · le ${r.day}${r.start?' · dès '+r.start:''}${r.end?' -> '+r.end:''}</div></div><div class="recur-amt ${isDep?'neg':'pos'}">${isDep?'-':'+'}${fmt(r.amount)}</div><button class="icon-btn" onclick="openRecurModal('${r.id}',null)">🖊</button>`;
     list.appendChild(d);
   });
 }
@@ -1091,14 +1258,14 @@ async function saveRecur(){
   const icon=document.getElementById('rm-ep').textContent;
   const isDep=recurModalType==='dep';
   const cat=isDep?document.getElementById('rm-cat').value:'Revenu';
-  if(!name){toast('⚠️ Nom manquant');return}
-  if(!amount||amount<=0){toast('⚠️ Montant invalide');return}
+  if(!name){toast('(!) Nom manquant');return}
+  if(!amount||amount<=0){toast('(!) Montant invalide');return}
   if(editingRecurId){
     await dbUpdateRecur(editingRecurId,{name,amount,cat,day,icon,start,end,rtype:recurModalType});
   }else{
     await dbAddRecur({name,amount,cat,day,icon,start,end,rtype:recurModalType});
   }
-  closeModal('recur-modal');toast(editingRecurId?'✓ Mis à jour':'✓ Récurrent ajouté');
+  closeModal('recur-modal');toast(editingRecurId?'OK Mis à jour':'OK Récurrent ajouté');
   await applyRecur();updateAll();updateRecurPage(recurModalType);
 }
 
@@ -1113,14 +1280,14 @@ function updateCatPage(){
   const list=document.getElementById('cat-list');list.innerHTML='';
   CATS.forEach(cat=>{
     const d=document.createElement('div');d.className='cat-row';
-    d.innerHTML=`<div class="cat-ico-circle">${cat.icon}</div><div style="flex:1;font-size:14px;font-weight:500;color:var(--t);">${cat.name}</div><div style="font-size:13px;color:var(--t2);">${fmt(cat.budget)}/mois</div><button class="icon-btn" onclick="openCatModal('${cat.name}')">✏️</button>`;
+    d.innerHTML=`<div class="cat-ico-circle">${cat.icon}</div><div style="flex:1;font-size:14px;font-weight:500;color:var(--t);">${cat.name}</div><div style="font-size:13px;color:var(--t2);">${fmt(cat.budget)}/mois</div><button class="icon-btn" onclick="openCatModal('${cat.name}')">🖊</button>`;
     list.appendChild(d);
   });
 }
 function openCatModal(name){
   editingCatName=name||null;const c=name?CATS.find(c=>c.name===name):null;
   document.getElementById('cm-title').textContent=c?'Modifier':'Nouvelle catégorie';
-  document.getElementById('cm-ep').textContent=c?c.icon:'🏷️';
+  document.getElementById('cm-ep').textContent=c?c.icon:'🔖';
   document.getElementById('cm-name').value=c?c.name:'';
   document.getElementById('cm-budget').value=c?c.budget:'';
   document.getElementById('cm-ep-picker').style.display='none';
@@ -1131,18 +1298,18 @@ async function saveCat(){
   const name=document.getElementById('cm-name').value.trim();
   const budget=parseFloat(document.getElementById('cm-budget').value)||0;
   const icon=document.getElementById('cm-ep').textContent;
-  if(!name){toast('⚠️ Nom manquant');return}
+  if(!name){toast('(!) Nom manquant');return}
   if(editingCatName){
     const c=CATS.find(c=>c.name===editingCatName);
     if(c){c.name=name;c.budget=budget;c.icon=icon;await dbUpsertCat(c);}
     TX.forEach(t=>{if(t.cat===editingCatName)t.cat=name});
     RECUR.forEach(r=>{if(r.cat===editingCatName)r.cat=name});
   }else{
-    if(CATS.find(c=>c.name===name)){toast('⚠️ Existe déjà');return}
+    if(CATS.find(c=>c.name===name)){toast('(!) Existe déjà');return}
     const newCat={name,icon,color:COLOR_POOL[CATS.length%COLOR_POOL.length],budget};
     CATS.push(newCat);await dbUpsertCat(newCat);
   }
-  closeModal('cat-modal');toast(editingCatName?'✓ Mise à jour':'✓ Catégorie créée');
+  closeModal('cat-modal');toast(editingCatName?'OK Mise à jour':'OK Catégorie créée');
   updateAll();updateCatPage();buildCatSel('a-cat');buildCatSel('rm-cat');
 }
 async function deleteCat(){
