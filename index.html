@@ -1547,59 +1547,53 @@ function lsBank(k,d){try{const v=localStorage.getItem('bank_'+currentUser?.id+'_
 function ssBank(k,v){try{localStorage.setItem('bank_'+currentUser?.id+'_'+k,JSON.stringify(v))}catch{}}
 
 async function connectBank(){
-  // Build Bridge URL directly — no popup, redirect in same window
-  // Store current page to return after auth
-  ssBank('return_page','banques');
-  
-  const redirectUri=encodeURIComponent('https://elsaliim.github.io/mon-budget/');
-  const bridgeUrl='https://api.bridgeapi.io/v2/connect/items/add'+
-    '?client_id=sandbox_id_0846adcd62c74997a104a0bddd7d4254'+
-    '&response_type=code'+
-    '&after_connect_url='+redirectUri;
-  
-  // Redirect in same window — works on all browsers including Safari PWA
-  window.location.href=bridgeUrl;
+  const btn=document.getElementById('connect-bank-btn');
+  btn.textContent='Chargement...';btn.disabled=true;
+  try{
+    const session=await supa.auth.getSession();
+    const supaToken=session.data.session.access_token;
+    // Get Bridge Connect URL via Edge Function
+    const resp=await fetch(`${SUPA_FUNCTIONS_URL}/bridge-token`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':`Bearer ${supaToken}`},
+      body:JSON.stringify({action:'get_connect_url',user_id:currentUser.id})
+    });
+    const data=await resp.json();
+    if(data.url){
+      // Save access token for later use
+      ssBank('access_token',data.access_token);
+      ssBank('return_page','banques');
+      // Redirect in same window
+      window.location.href=data.url;
+    }else{
+      toast('Erreur: '+(data.error||'URL non generee'));
+      console.error('Bridge error:',data);
+    }
+  }catch(e){
+    toast('Erreur: '+e.message);
+  }
+  btn.textContent='+ Connecter ma banque';btn.disabled=false;
 }
 
 // Handle return from Bridge auth (called on app load)
 async function handleBridgeCallback(){
   const params=new URLSearchParams(window.location.search);
-  const code=params.get('code');
   const error=params.get('error');
+  const status=params.get('status');
   
-  if(error){
-    toast('Connexion annulee');
-    // Clean URL
+  // Clean URL
+  if(params.toString()){
     window.history.replaceState({},'',window.location.pathname);
-    return;
   }
+
+  if(error){toast('Connexion annulee');return;}
   
-  if(!code)return;
-  
-  // Clean URL immediately
-  window.history.replaceState({},'',window.location.pathname);
-  toast('Connexion en cours...');
-  
-  try{
-    const session=await supa.auth.getSession();
-    const token=session.data.session.access_token;
-    const resp=await fetch(`${SUPA_FUNCTIONS_URL}/bridge-token`,{
-      method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},
-      body:JSON.stringify({action:'exchange_token',code})
-    });
-    const data=await resp.json();
-    if(data.access_token){
-      ssBank('access_token',data.access_token);
-      toast('Banque connectee avec succes !');
-      openMenuPage('banques');
-      await loadBankAccounts();
-    }else{
-      toast('Erreur: token invalide');
-      console.error('Bridge token error:',data);
-    }
-  }catch(e){
-    toast('Erreur connexion: '+e.message);
+  // If returning from Bridge Connect (status=success or access_token saved)
+  const savedToken=lsBank('access_token',null);
+  if(savedToken&&status!=='error'){
+    toast('Banque connectee ! Chargement des comptes...');
+    openMenuPage('banques');
+    await loadBankAccounts();
   }
 }
 
