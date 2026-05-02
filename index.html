@@ -219,6 +219,14 @@
     .cat-row:last-child{border-bottom:none}
     .cat-ico-circle{width:36px;height:36px;border-radius:50%;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
     .row-between{display:flex;justify-content:space-between;align-items:center}
+    .bank-account-item{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:.5px solid var(--b)}
+    .bank-account-item:last-child{border-bottom:none}
+    .bank-account-icon{width:40px;height:40px;border-radius:50%;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+    .bank-account-info{flex:1}
+    .bank-account-name{font-size:14px;font-weight:500;color:var(--t)}
+    .bank-account-num{font-size:12px;color:var(--t2);margin-top:1px}
+    .bank-account-balance{font-size:15px;font-weight:600;color:var(--t);flex-shrink:0}
+    .import-badge{display:inline-flex;align-items:center;gap:4px;background:var(--gl);color:var(--g);font-size:11px;font-weight:600;padding:3px 8px;border-radius:10px}
     .info-card{border-radius:var(--rad);padding:14px 16px;margin-bottom:12px}
 
     /* SYNC INDICATOR */
@@ -289,6 +297,12 @@
     <button class="sidemenu-item" onclick="openMenuPage('categories')">
       <div class="si-icon" style="background:#EEEDFE;">🔖</div>
       <div><div class="si-label">Catégories</div><div class="si-sub">Ajouter, modifier…</div></div>
+    </button>
+    <div class="sidemenu-divider"></div>
+    <div class="sidemenu-section">Banques</div>
+    <button class="sidemenu-item" onclick="openMenuPage('banques')">
+      <div class="si-icon" style="background:#E8F4FD;">🏦</div>
+      <div><div class="si-label">Mes banques</div><div class="si-sub">Connecter et synchroniser</div></div>
     </button>
     <div class="sidemenu-divider"></div>
     <button class="signout-btn" onclick="signOut()">🚪 Se déconnecter</button>
@@ -408,6 +422,40 @@
         <div style="font-size:24px;font-weight:700;color:var(--g);" id="revenus-total">0 €</div>
       </div>
       <div class="card"><div id="revenus-list"></div></div>
+    </div>
+
+    <!-- BANQUES -->
+    <div class="page" id="page-banques">
+      <div style="font-size:18px;font-weight:600;margin-bottom:4px;">🏦 Mes banques</div>
+      <div style="font-size:13px;color:var(--t2);margin-bottom:16px;">Connectez votre banque pour importer automatiquement vos transactions</div>
+
+      <div id="bank-connected-list"></div>
+
+      <div class="card" style="text-align:center;padding:24px 20px;" id="bank-connect-card">
+        <div style="font-size:40px;margin-bottom:12px;">🏦</div>
+        <div style="font-size:16px;font-weight:600;color:var(--t);margin-bottom:6px;">Connecter une banque</div>
+        <div style="font-size:13px;color:var(--t2);margin-bottom:20px;line-height:1.6;">Liez votre compte bancaire pour importer vos transactions automatiquement. Connexion sécurisée via Bridge.</div>
+        <button class="btn btn-p" onclick="connectBank()" id="connect-bank-btn">+ Connecter ma banque</button>
+        <div style="font-size:11px;color:var(--t2);margin-top:12px;">🔒 Connexion sécurisée · Lecture seule · Vos identifiants ne sont jamais stockés</div>
+      </div>
+
+      <div class="card" id="bank-accounts-card" style="display:none;">
+        <div class="row-between" style="margin-bottom:12px;">
+          <span class="sec-title" style="margin-bottom:0;">Comptes</span>
+          <button class="btn btn-p btn-sm" onclick="syncBankTransactions()" id="sync-btn">Synchroniser</button>
+        </div>
+        <div id="bank-accounts-list"></div>
+      </div>
+
+      <div class="card" style="background:var(--pl);border:none;margin-top:12px;">
+        <div style="font-size:13px;font-weight:600;color:var(--pd);margin-bottom:4px;">💡 Comment ca marche</div>
+        <div style="font-size:12px;color:var(--pd);line-height:1.6;">
+          1. Cliquez sur "Connecter ma banque"<br>
+          2. Choisissez votre banque et connectez-vous<br>
+          3. Vos transactions sont importees automatiquement<br>
+          4. Synchronisez a tout moment pour avoir les dernieres operations
+        </div>
+      </div>
     </div>
 
     <!-- CATEGORIES -->
@@ -1446,6 +1494,7 @@ function openMenuPage(name){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('page-'+name).classList.add('active');
+  if(name==='banques')updateBankPage();
   if(name==='charges')updateRecurPage('dep');
   if(name==='revenus')updateRecurPage('rev');
   if(name==='categories')updateCatPage();
@@ -1486,6 +1535,155 @@ function buildDash(){
   const ll=[],lr=[],ld=[];
   for(let i=5;i>=0;i--){let m=vM-i,y=vY;if(m<0){m+=12;y--}const k=mKey(y,m);const lbl=new Date(y,m,1).toLocaleDateString('fr-FR',{month:'short'});ll.push(lbl.charAt(0).toUpperCase()+lbl.slice(1));let r=0,d=0;TX.filter(t=>t.date&&t.date.startsWith(k)).forEach(t=>{if(t.type==='rev')r+=t.amount;else d+=t.amount});lr.push(Math.round(r));ld.push(Math.round(d))}
   dashLine=new Chart(document.getElementById('dash-line'),{type:'line',data:{labels:ll,datasets:[{label:'Revenus',data:lr,borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,.1)',fill:true,tension:.4,pointRadius:2},{label:'Dépenses',data:ld,borderColor:'#7F77DD',backgroundColor:'rgba(127,119,221,.1)',fill:true,tension:.4,pointRadius:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{ticks:{callback:v=>v+'€'}}}}});
+}
+
+// -- BANK INTEGRATION --
+const SUPA_FUNCTIONS_URL = 'https://wdpcdtvufwnptrgojqge.supabase.co/functions/v1';
+
+function lsBank(k,d){try{const v=localStorage.getItem('bank_'+currentUser?.id+'_'+k);return v?JSON.parse(v):d}catch{return d}}
+function ssBank(k,v){try{localStorage.setItem('bank_'+currentUser?.id+'_'+k,JSON.stringify(v))}catch{}}
+
+async function connectBank(){
+  const btn=document.getElementById('connect-bank-btn');
+  btn.textContent='Connexion...';btn.disabled=true;
+  try{
+    const resp=await fetch(`${SUPA_FUNCTIONS_URL}/bridge-token`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':`Bearer ${(await supa.auth.getSession()).data.session.access_token}`},
+      body:JSON.stringify({action:'get_auth_url'})
+    });
+    const data=await resp.json();
+    if(data.url){
+      ssBank('pending_connect','true');
+      window.open(data.url,'_blank');
+      toast('Connectez-vous a votre banque dans la page qui vient de souvrir');
+    }else{
+      toast('Erreur de connexion Bridge');
+    }
+  }catch(e){
+    toast('Erreur: '+e.message);
+  }
+  btn.textContent='+ Connecter ma banque';btn.disabled=false;
+}
+
+async function loadBankAccounts(){
+  const token=lsBank('access_token',null);
+  if(!token)return;
+  document.getElementById('bank-accounts-card').style.display='block';
+  document.getElementById('bank-connect-card').querySelector('button').textContent='+ Ajouter une autre banque';
+  try{
+    const resp=await fetch(`${SUPA_FUNCTIONS_URL}/bridge-accounts`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':`Bearer ${(await supa.auth.getSession()).data.session.access_token}`},
+      body:JSON.stringify({access_token:token})
+    });
+    const data=await resp.json();
+    const accounts=data.resources||data||[];
+    ssBank('accounts',accounts);
+    renderBankAccounts(accounts);
+  }catch(e){
+    toast('Erreur chargement comptes: '+e.message);
+  }
+}
+
+function renderBankAccounts(accounts){
+  const list=document.getElementById('bank-accounts-list');
+  list.innerHTML='';
+  if(!accounts||!accounts.length){
+    list.innerHTML='<div class="empty"><div class="ei">🏦</div>Aucun compte trouve.</div>';
+    return;
+  }
+  let totalBalance=0;
+  accounts.forEach(acc=>{
+    totalBalance+=acc.balance||0;
+    const d=document.createElement('div');
+    d.className='bank-account-item';
+    const typeIcon=acc.type===1?'💳':acc.type===2?'💰':acc.type===3?'📈':'🏦';
+    const typeName=acc.type===1?'Compte courant':acc.type===2?'Livret':acc.type===3?'Investissement':'Compte';
+    const balance=acc.balance||0;
+    d.innerHTML=`<div class="bank-account-icon">${typeIcon}</div>
+      <div class="bank-account-info">
+        <div class="bank-account-name">${acc.name||typeName}</div>
+        <div class="bank-account-num">${typeName} · ${acc.iban?acc.iban.slice(-4):'****'}</div>
+      </div>
+      <div class="bank-account-balance ${balance>=0?'':'ds-red'}">${balance>=0?'+':''}${fmt(balance)}</div>`;
+    list.appendChild(d);
+  });
+  // Show total
+  const total=document.createElement('div');
+  total.style.cssText='display:flex;justify-content:space-between;padding:12px 0 0;border-top:.5px solid var(--b);margin-top:4px;font-weight:600;font-size:14px;';
+  total.innerHTML=`<span>Total</span><span>${fmt(totalBalance)}</span>`;
+  list.appendChild(total);
+}
+
+async function syncBankTransactions(){
+  const token=lsBank('access_token',null);
+  if(!token){toast('Banque non connectee');return;}
+  const btn=document.getElementById('sync-btn');
+  btn.textContent='Sync...';btn.disabled=true;
+  setSyncState('syncing');
+  try{
+    const accounts=lsBank('accounts',[]);
+    let importedCount=0;
+    for(const acc of accounts){
+      const resp=await fetch(`${SUPA_FUNCTIONS_URL}/bridge-transactions`,{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':`Bearer ${(await supa.auth.getSession()).data.session.access_token}`},
+        body:JSON.stringify({access_token:token,account_id:acc.id,since:lsBank('last_sync',null)})
+      });
+      const data=await resp.json();
+      const txs=data.resources||data||[];
+      for(const tx of txs){
+        // Check if already imported
+        const exists=TX.some(t=>t.bridge_id===tx.id);
+        if(!exists){
+          const amount=Math.abs(tx.amount);
+          const type=tx.amount<0?'dep':'rev';
+          const cat=guessCatFromBridge(tx);
+          await dbAddTx({
+            type,amount,
+            description:tx.label||tx.clean_description||'Transaction bancaire',
+            cat,
+            date:tx.date||tx.transaction_date,
+            auto:false,
+            bridge_id:tx.id
+          });
+          importedCount++;
+        }
+      }
+    }
+    ssBank('last_sync',new Date().toISOString().split('T')[0]);
+    setSyncState('ok');
+    toast(`OK ${importedCount} nouvelle(s) transaction(s) importee(s)`);
+    updateAll();
+  }catch(e){
+    setSyncState('error');
+    toast('Erreur sync: '+e.message);
+  }
+  btn.textContent='Synchroniser';btn.disabled=false;
+}
+
+function guessCatFromBridge(tx){
+  const label=(tx.label||tx.clean_description||'').toLowerCase();
+  const brand=detectBrand(label);
+  if(brand){
+    if(['netflix','spotify','deezer','disney','canal','apple','amazon prime'].some(k=>label.includes(k)))return'Abonnements';
+    if(['carrefour','lidl','aldi','leclerc','intermarche','auchan','monoprix','franprix'].some(k=>label.includes(k)))return'Alimentation';
+    if(['sncf','ratp','uber','blablacar'].some(k=>label.includes(k)))return'Transport';
+    if(['mcdo','uber eats','deliveroo','just eat'].some(k=>label.includes(k)))return'Restaurants';
+  }
+  // Bridge category mapping
+  const bridgeCat=tx.category_id||0;
+  if(bridgeCat>=1&&bridgeCat<=5)return'Alimentation';
+  if(bridgeCat>=6&&bridgeCat<=10)return'Transport';
+  if(bridgeCat>=11&&bridgeCat<=15)return'Logement';
+  if(bridgeCat>=16&&bridgeCat<=20)return'Loisirs';
+  if(bridgeCat>=21&&bridgeCat<=25)return'Sante';
+  return CATS[0]?.name||'Alimentation';
+}
+
+function updateBankPage(){
+  loadBankAccounts();
 }
 
 // -- START --
