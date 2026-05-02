@@ -350,8 +350,8 @@
           <strong>Virement vers épargne</strong> — diminue votre solde et augmente votre épargne cumulée.<br>
           Pour un retrait, choisissez <strong>Retrait épargne</strong>.
         </div>
-        <div class="fgroup"><label class="flabel">Montant (€)</label><input type="number" id="a-amount" placeholder="0,00" min="0" step="0.01" inputmode="decimal"/></div>
         <div class="fgroup"><label class="flabel">Description</label><input type="text" id="a-desc" placeholder="Ex : Courses Lidl"/></div>
+        <div class="fgroup"><label class="flabel">Montant (€)</label><input type="number" id="a-amount" placeholder="0,00" min="0" step="0.01" inputmode="decimal"/></div>
         <div class="fgroup" id="a-cat-group"><label class="flabel">Catégorie</label><select id="a-cat"></select></div>
         <div class="fgroup"><label class="flabel">Date</label><input type="date" id="a-date"/></div>
         <button class="btn btn-p" onclick="addTransaction()">Ajouter</button>
@@ -449,8 +449,8 @@
   <div class="modal-box">
     <div class="modal-title" id="tx-modal-title">Modifier</div>
     <div class="modal-sub" id="tx-modal-sub"></div>
-    <div class="fgroup"><label class="flabel">Montant (€)</label><input type="number" id="tx-amount" min="0" step="0.01" inputmode="decimal"/></div>
     <div class="fgroup"><label class="flabel">Description</label><input type="text" id="tx-desc"/></div>
+    <div class="fgroup"><label class="flabel">Montant (€)</label><input type="number" id="tx-amount" min="0" step="0.01" inputmode="decimal"/></div>
     <div class="fgroup" id="tx-cat-group"><label class="flabel">Catégorie</label><select id="tx-cat"></select></div>
     <div class="fgroup"><label class="flabel">Date</label><input type="date" id="tx-date"/></div>
     <div class="btn-row"><button class="btn btn-ghost" onclick="closeModal('tx-modal')">Annuler</button><button class="btn btn-p" onclick="saveTxEdit()">Enregistrer</button></div>
@@ -1010,7 +1010,10 @@ function recurActive(r,y,m){
 }
 
 // -- HELPERS --
-function fmt(n){return Math.round(n).toLocaleString('fr-FR')+' €'}
+function fmt(n){
+  const rounded=Math.round(n*100)/100;
+  return rounded.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
+}
 function catOf(name){return CATS.find(c=>c.name===name)||{icon:'💳',color:'#888780',budget:0}}
 function txForMonth(){const k=curKey();return TX.filter(t=>t.date&&t.date.startsWith(k))}
 function buildCatSel(id,sel){const s=document.getElementById(id);if(!s)return;const cur=s.value||sel;s.innerHTML='';CATS.forEach(c=>{const o=document.createElement('option');o.value=c.name;o.textContent=`${c.icon} ${c.name}`;if(c.name===cur)o.selected=true;s.appendChild(o)})}
@@ -1196,7 +1199,8 @@ function updateBudget(){
     const share=totalBudget>0?Math.round((cat.budget/totalBudget)*100):0;
     const bc=pct>=100?'#E24B4A':pct>=80?'#EF9F27':(cat.color||'#7F77DD');
     const item=document.createElement('div');item.className='budget-item';item.style.cursor='pointer';item.onclick=(e)=>{if(!e.target.closest('.icon-btn'))openCatDetail(cat.name)};
-    item.innerHTML=`<div class="bh"><div class="bname">${cat.icon} ${cat.name}</div><div class="bright"><div class="bamts">${fmt(spent)} / ${fmt(cat.budget)}</div><span style="font-size:10px;background:var(--pl);color:var(--pd);padding:2px 6px;border-radius:8px;font-weight:600;">${share}%</span><button class="icon-btn" onclick="openBudgetModal('${cat.name}')">🖊</button></div></div><div class="bar-bg"><div class="bar-fill" style="width:${pctBar}%;background:${bc};"></div></div>`;
+    const overageLabel=pct>100?`<span style="font-size:10px;background:var(--rl);color:var(--r);padding:2px 6px;border-radius:8px;font-weight:600;">+${pct-100}%</span>`:`<span style="font-size:10px;background:var(--pl);color:var(--pd);padding:2px 6px;border-radius:8px;font-weight:600;">${share}%</span>`;
+    item.innerHTML=`<div class="bh"><div class="bname">${cat.icon} ${cat.name}</div><div class="bright"><div class="bamts">${fmt(spent)} / ${fmt(cat.budget)}</div>${overageLabel}<button class="icon-btn" onclick="openBudgetModal('${cat.name}')">🖊</button></div></div><div class="bar-bg"><div class="bar-fill" style="width:${pctBar}%;background:${bc};"></div></div>`;
     list.appendChild(item);
     if(pct>=80){hasAl=true;const a=document.createElement('div');a.className='alert-row';const realPct=cat.budget>0?Math.round((spent/cat.budget)*100):0;
       const label=realPct>=100?(realPct===100?'💸 Budget épuisé':'📛 Dépassé de '+(realPct-100)+'%'):'(!) '+realPct+'%';a.innerHTML=`<span style="font-size:14px;font-weight:500;">${cat.icon} ${cat.name}</span><span class="badge ${realPct>=100?'bdanger':'bwarn'}">${label}</span>`;al.appendChild(a);}
