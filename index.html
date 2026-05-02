@@ -319,8 +319,13 @@
         </div>
       </div>
       <div class="metrics">
-        <div class="metric"><div class="ml">Épargne</div><div class="mv" id="h-ep">0 €</div><div class="ms" id="h-ep-pct">—</div></div>
+        <div class="metric"><div class="ml">Épargne ce mois</div><div class="mv" id="h-ep">0 €</div><div class="ms" id="h-ep-pct">—</div></div>
         <div class="metric"><div class="ml">Récurrents</div><div class="mv" id="h-rec">0 €</div><div class="ms" id="h-rec-n">—</div></div>
+      </div>
+      <div class="card" style="background:linear-gradient(135deg,#639922,#8BBF3A);color:white;padding:16px 20px;margin-bottom:12px;">
+        <div style="font-size:12px;opacity:.8;margin-bottom:4px;">💰 Épargne totale cumulée</div>
+        <div style="font-size:30px;font-weight:700;letter-spacing:-0.5px;" id="h-ep-cumul">0 €</div>
+        <div style="font-size:12px;opacity:.75;margin-top:4px;" id="h-ep-cumul-sub">Depuis le début</div>
       </div>
       <div class="card"><div class="sec-title">Transactions du mois</div><div id="home-tx"></div></div>
     </div>
@@ -863,6 +868,10 @@ function updateHome(){
   const ep=txForMonth().filter(t=>t.cat==='Épargne').reduce((s,t)=>s+t.amount,0);
   document.getElementById('h-ep').textContent=fmt(ep);
   document.getElementById('h-ep-pct').textContent=rev>0?Math.round((ep/rev)*100)+'% des revenus':'—';
+  const epCumul=TX.filter(t=>t.cat==='Épargne').reduce((s,t)=>s+t.amount,0);
+  document.getElementById('h-ep-cumul').textContent=fmt(epCumul);
+  const firstEpDate=TX.filter(t=>t.cat==='Épargne').map(t=>t.date).sort()[0];
+  document.getElementById('h-ep-cumul-sub').textContent=firstEpDate?'Depuis '+new Date(firstEpDate+'T12:00:00').toLocaleDateString('fr-FR',{month:'long',year:'numeric'}):'Toutes transactions confondues';
   const rd=RECUR.filter(r=>r.rtype!=='rev').reduce((s,r)=>s+r.amount,0);
   document.getElementById('h-rec').textContent=fmt(rd);
   document.getElementById('h-rec-n').textContent=RECUR.filter(r=>r.rtype!=='rev').length+' charge(s)';
@@ -901,13 +910,14 @@ function updateBudget(){
   const al=document.getElementById('alerts-list');al.innerHTML='';let hasAl=false;
   CATS.forEach(cat=>{
     const spent=byCat[cat.name]||0;
-    const pct=cat.budget>0?Math.min(100,Math.round((spent/cat.budget)*100)):0;
+    const pct=cat.budget>0?Math.round((spent/cat.budget)*100):0;const pctBar=Math.min(100,pct);
     const share=totalBudget>0?Math.round((cat.budget/totalBudget)*100):0;
     const bc=pct>=100?'#E24B4A':pct>=80?'#EF9F27':(cat.color||'#7F77DD');
     const item=document.createElement('div');item.className='budget-item';
-    item.innerHTML=`<div class="bh"><div class="bname">${cat.icon} ${cat.name}</div><div class="bright"><div class="bamts">${fmt(spent)} / ${fmt(cat.budget)}</div><span style="font-size:10px;background:var(--pl);color:var(--pd);padding:2px 6px;border-radius:8px;font-weight:600;">${share}%</span><button class="icon-btn" onclick="openBudgetModal('${cat.name}')">✏️</button></div></div><div class="bar-bg"><div class="bar-fill" style="width:${pct}%;background:${bc};"></div></div>`;
+    item.innerHTML=`<div class="bh"><div class="bname">${cat.icon} ${cat.name}</div><div class="bright"><div class="bamts">${fmt(spent)} / ${fmt(cat.budget)}</div><span style="font-size:10px;background:var(--pl);color:var(--pd);padding:2px 6px;border-radius:8px;font-weight:600;">${share}%</span><button class="icon-btn" onclick="openBudgetModal('${cat.name}')">✏️</button></div></div><div class="bar-bg"><div class="bar-fill" style="width:${pctBar}%;background:${bc};"></div></div>`;
     list.appendChild(item);
-    if(pct>=80){hasAl=true;const a=document.createElement('div');a.className='alert-row';const label=pct>=100?'💸 Budget épuisé':'⚠️ '+pct+'%';a.innerHTML=`<span style="font-size:14px;font-weight:500;">${cat.icon} ${cat.name}</span><span class="badge ${pct>=100?'bdanger':'bwarn'}">${label}</span>`;al.appendChild(a);}
+    if(pct>=80){hasAl=true;const a=document.createElement('div');a.className='alert-row';const realPct=cat.budget>0?Math.round((spent/cat.budget)*100):0;
+      const label=realPct>=100?(realPct===100?'💸 Budget épuisé':'📛 Dépassé de '+(realPct-100)+'%'):'⚠️ '+realPct+'%';a.innerHTML=`<span style="font-size:14px;font-weight:500;">${cat.icon} ${cat.name}</span><span class="badge ${realPct>=100?'bdanger':'bwarn'}">${label}</span>`;al.appendChild(a);}
   });
   if(!hasAl)al.innerHTML='<div class="empty" style="padding:14px 0;"><div class="ei">🎉</div>Aucune alerte !</div>';
 }
