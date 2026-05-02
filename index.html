@@ -670,7 +670,7 @@ function detectBrand(description) {
 
 function getBrandLogoUrl(domain) {
   if(!domain) return null;
-  return `https://logo.clearbit.com/${domain}`;
+  return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
 }
 
 
@@ -686,7 +686,7 @@ function renderBrandIcon(container, description, fallbackIcon, fallbackBg, size=
       container.style.fontSize = Math.round(size*0.45)+'px';
     } else {
       const img = document.createElement('img');
-      img.style.cssText = `width:${Math.round(size*0.65)}px;height:${Math.round(size*0.65)}px;object-fit:contain;border-radius:4px;`;
+      img.style.cssText = `width:${Math.round(size*0.6)}px;height:${Math.round(size*0.6)}px;object-fit:contain;border-radius:6px;image-rendering:auto;`;
       img.onload = () => { LOGO_CACHE[cacheKey] = true; };
       img.onerror = () => {
         LOGO_CACHE[cacheKey] = false;
