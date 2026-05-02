@@ -944,15 +944,15 @@ function calcTotals(){
   let rev=0,dep=0,savIn=0,savOut=0;
   txForMonth().forEach(t=>{
     if(t.sav_type==='in'){
-      savIn+=t.amount; // virement épargne: counts as expense for balance
+      savIn+=t.amount;
     }else if(t.sav_type==='out'){
-      savOut+=t.amount; // retrait épargne: counts as revenue for balance
+      savOut+=t.amount;
     }else{
-      // Normal transactions (sav_type is null/undefined/empty)
       if(t.type==='rev')rev+=t.amount;
       else dep+=t.amount;
     }
   });
+  // Balance: normal ops + savings movements (sav_in reduces, sav_out increases)
   const bal=(rev+savOut)-(dep+savIn);
   return{rev,dep,savIn,savOut,bal};
 }
@@ -960,9 +960,9 @@ function calcTotals(){
 function updateHome(){
   const{rev,dep,bal,savIn,savOut}=calcTotals();
   document.getElementById('h-bal').textContent=(bal>=0?'+':'')+fmt(bal);
-  document.getElementById('h-rev').textContent=fmt(rev+(savOut||0));
-  document.getElementById('h-dep').textContent=fmt(dep+(savIn||0));
-  const ep=txForMonth().filter(t=>t.cat===CAT_SAVINGS).reduce((s,t)=>s+t.amount,0);
+  document.getElementById('h-rev').textContent=fmt(rev);
+  document.getElementById('h-dep').textContent=fmt(dep);
+  const ep=savIn-savOut; // net épargne ce mois: virements - retraits
   document.getElementById('h-ep').textContent=fmt(ep);
   document.getElementById('h-ep-pct').textContent=rev>0?Math.round((ep/rev)*100)+'% des revenus':'—';
   const epTx=TX.filter(t=>t.cat===CAT_SAVINGS);
@@ -984,11 +984,18 @@ function updateHome(){
   if(!mTx.length){c.innerHTML='<div class="empty"><div class="ei">💳</div>Aucune transaction pour ce mois.</div>';return}
   mTx.forEach(t=>{
     const cat=catOf(t.cat);const d=document.createElement('div');d.className='tx-item';
-    const icon=t.type==='rev'?'💼':cat.icon;
-    const ibg=t.type==='rev'?'#EAF3DE':(cat.color||'#7F77DD')+'22';
+    // Determine display based on sav_type
+    const isSavIn=t.sav_type==='in';
+    const isSavOut=t.sav_type==='out';
+    const icon=isSavIn?'💰':isSavOut?'💸':(t.type==='rev'?'💼':cat.icon);
+    const ibg=isSavIn?'#EAF3DE':isSavOut?'#FCEBEB':(t.type==='rev'?'#EAF3DE':(cat.color||'#7F77DD')+'22');
     const ds=new Date(t.date+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
     const autoTag=t.auto?'<span class="auto-tag">🔁</span>':'';
-    d.innerHTML=`<div class="tx-ico" style="background:${ibg};">${icon}</div><div class="tx-info"><div class="tx-name">${t.description}${autoTag}</div><div class="tx-date">${t.cat} · ${ds}</div></div><div class="tx-amt ${t.type==='dep'?'neg':'pos'}">${t.type==='dep'?'-':'+'}${fmt(t.amount)}</div>`;
+    // sav_in: -amount (leaves wallet), sav_out: shown as transfer back
+    const displayNeg=t.type==='dep'||isSavIn;
+    const savLabel=isSavIn?'<span class="auto-tag">→ Épargne</span>':isSavOut?'<span class="auto-tag">← Épargne</span>':'';
+    const subcat=isSavIn||isSavOut?'Épargne':t.cat;
+    d.innerHTML=`<div class="tx-ico" style="background:${ibg};">${icon}</div><div class="tx-info"><div class="tx-name">${t.description}${autoTag}${savLabel}</div><div class="tx-date">${subcat} · ${ds}</div></div><div class="tx-amt ${displayNeg?'neg':'pos'}">${displayNeg?'-':'+'}${fmt(t.amount)}</div>`;
     d.onclick=()=>openTxEdit(t.id);c.appendChild(d);
   });
 }
