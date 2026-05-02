@@ -962,7 +962,11 @@ function updateHome(){
   document.getElementById('h-bal').textContent=(bal>=0?'+':'')+fmt(bal);
   document.getElementById('h-rev').textContent=fmt(rev);
   document.getElementById('h-dep').textContent=fmt(dep);
-  const ep=savIn-savOut; // net épargne ce mois: virements - retraits
+  // Net épargne ce mois: new sav_type + old-style (cat=Épargne, no sav_type)
+  const epMonthTx=txForMonth().filter(t=>t.cat===CAT_SAVINGS);
+  const epMonthIn=savIn+epMonthTx.filter(t=>!t.sav_type&&t.type==='dep').reduce((s,t)=>s+t.amount,0);
+  const epMonthOut=savOut+epMonthTx.filter(t=>!t.sav_type&&t.type==='rev').reduce((s,t)=>s+t.amount,0);
+  const ep=epMonthIn-epMonthOut;
   document.getElementById('h-ep').textContent=fmt(ep);
   document.getElementById('h-ep-pct').textContent=rev>0?Math.round((ep/rev)*100)+'% des revenus':'—';
   const epTx=TX.filter(t=>t.cat===CAT_SAVINGS);
