@@ -941,25 +941,24 @@ async function deleteTx(){
 
 // -- HOME --
 function calcTotals(){
-  let rev=0,dep=0;
+  let rev=0,dep=0,savIn=0,savOut=0;
   txForMonth().forEach(t=>{
-    // Exclude savings transfers from main rev/dep counters — they go to épargne pot
-    if(t.sav_type)return;
-    if(t.type==='rev')rev+=t.amount;
-    else dep+=t.amount;
-  });
-  // Also add sav_out as revenue and sav_in as expense for balance calc
-  let savIn=0,savOut=0;
-  txForMonth().forEach(t=>{
-    if(t.sav_type==='in')savIn+=t.amount;
-    if(t.sav_type==='out')savOut+=t.amount;
+    if(t.sav_type==='in'){
+      savIn+=t.amount; // virement épargne: counts as expense for balance
+    }else if(t.sav_type==='out'){
+      savOut+=t.amount; // retrait épargne: counts as revenue for balance
+    }else{
+      // Normal transactions (sav_type is null/undefined/empty)
+      if(t.type==='rev')rev+=t.amount;
+      else dep+=t.amount;
+    }
   });
   const bal=(rev+savOut)-(dep+savIn);
   return{rev,dep,savIn,savOut,bal};
 }
 
 function updateHome(){
-  const{rev,dep,bal}=calcTotals();
+  const{rev,dep,bal,savIn,savOut}=calcTotals();
   document.getElementById('h-bal').textContent=(bal>=0?'+':'')+fmt(bal);
   document.getElementById('h-rev').textContent=fmt(rev+(savOut||0));
   document.getElementById('h-dep').textContent=fmt(dep+(savIn||0));
