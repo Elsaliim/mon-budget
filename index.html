@@ -1545,22 +1545,33 @@ function ssBank(k,v){try{localStorage.setItem('bank_'+currentUser?.id+'_'+k,JSON
 
 async function connectBank(){
   const btn=document.getElementById('connect-bank-btn');
-  btn.textContent='Connexion...';btn.disabled=true;
+  btn.textContent='Chargement...';btn.disabled=true;
+
+  // Open window immediately on user tap — before any async call
+  // Safari blocks window.open() if called after await
+  const popup=window.open('about:blank','_blank');
+
   try{
+    const session=await supa.auth.getSession();
+    const token=session.data.session.access_token;
     const resp=await fetch(`${SUPA_FUNCTIONS_URL}/bridge-token`,{
       method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':`Bearer ${(await supa.auth.getSession()).data.session.access_token}`},
+      headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},
       body:JSON.stringify({action:'get_auth_url'})
     });
     const data=await resp.json();
-    if(data.url){
+    if(data.url&&popup){
       ssBank('pending_connect','true');
-      window.open(data.url,'_blank');
-      toast('Connectez-vous a votre banque dans la page qui vient de souvrir');
-    }else{
-      toast('Erreur de connexion Bridge');
+      popup.location.href=data.url;
+      toast('Page de connexion bancaire ouverte');
+    }else if(!data.url){
+      if(popup)popup.close();
+      // Fallback: build URL directly with client_id
+      const directUrl='https://api.bridgeapi.io/v2/connect/items/add?client_id=sandbox_id_0846adcd62c74997a104a0bddd7d4254&response_type=code&after_connect_url='+encodeURIComponent('https://elsaliim.github.io/mon-budget/');
+      window.location.href=directUrl;
     }
   }catch(e){
+    if(popup)popup.close();
     toast('Erreur: '+e.message);
   }
   btn.textContent='+ Connecter ma banque';btn.disabled=false;
