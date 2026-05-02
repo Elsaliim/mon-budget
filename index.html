@@ -885,19 +885,33 @@ let editingBudgetCat=null;
 function updateBudget(){
   const byCat={};txForMonth().filter(t=>t.type==='dep').forEach(t=>{byCat[t.cat]=(byCat[t.cat]||0)+t.amount});
   const list=document.getElementById('budget-list');
-  list.innerHTML=`<div class="row-between" style="margin-bottom:12px;"><span class="sec-title" style="margin-bottom:0;">Suivi mensuel</span><span style="font-size:11px;color:var(--t2);">✏️ pour modifier</span></div>`;
+  const totalBudget=CATS.reduce((s,c)=>s+c.budget,0);
+  const totalSpent=Object.values(byCat).reduce((s,v)=>s+v,0);
+  const totalPct=totalBudget>0?Math.min(100,Math.round((totalSpent/totalBudget)*100)):0;
+  const totalBc=totalPct>=100?'#E24B4A':totalPct>=80?'#EF9F27':'#7F77DD';
+  list.innerHTML=`<div class="row-between" style="margin-bottom:12px;"><span class="sec-title" style="margin-bottom:0;">Suivi mensuel</span><span style="font-size:11px;color:var(--t2);">✏️ pour modifier</span></div>
+    <div style="background:var(--s2);border-radius:var(--rsm);padding:14px;margin-bottom:14px;">
+      <div class="row-between" style="margin-bottom:8px;">
+        <span style="font-size:13px;font-weight:600;color:var(--t);">Total global</span>
+        <span style="font-size:13px;color:var(--t2);">${fmt(totalSpent)} / ${fmt(totalBudget)}</span>
+      </div>
+      <div class="bar-bg"><div class="bar-fill" style="width:${totalPct}%;background:${totalBc};"></div></div>
+      <div style="font-size:11px;color:var(--t2);margin-top:6px;">${totalPct}% du budget global utilisé</div>
+    </div>`;
   const al=document.getElementById('alerts-list');al.innerHTML='';let hasAl=false;
   CATS.forEach(cat=>{
     const spent=byCat[cat.name]||0;
     const pct=cat.budget>0?Math.min(100,Math.round((spent/cat.budget)*100)):0;
+    const share=totalBudget>0?Math.round((cat.budget/totalBudget)*100):0;
     const bc=pct>=100?'#E24B4A':pct>=80?'#EF9F27':(cat.color||'#7F77DD');
     const item=document.createElement('div');item.className='budget-item';
-    item.innerHTML=`<div class="bh"><div class="bname">${cat.icon} ${cat.name}</div><div class="bright"><div class="bamts">${fmt(spent)} / ${fmt(cat.budget)}</div><button class="icon-btn" onclick="openBudgetModal('${cat.name}')">✏️</button></div></div><div class="bar-bg"><div class="bar-fill" style="width:${pct}%;background:${bc};"></div></div>`;
+    item.innerHTML=`<div class="bh"><div class="bname">${cat.icon} ${cat.name}</div><div class="bright"><div class="bamts">${fmt(spent)} / ${fmt(cat.budget)}</div><span style="font-size:10px;background:var(--pl);color:var(--pd);padding:2px 6px;border-radius:8px;font-weight:600;">${share}%</span><button class="icon-btn" onclick="openBudgetModal('${cat.name}')">✏️</button></div></div><div class="bar-bg"><div class="bar-fill" style="width:${pct}%;background:${bc};"></div></div>`;
     list.appendChild(item);
-    if(pct>=80){hasAl=true;const a=document.createElement('div');a.className='alert-row';a.innerHTML=`<span style="font-size:14px;font-weight:500;">${cat.icon} ${cat.name}</span><span class="badge ${pct>=100?'bdanger':'bwarn'}">${pct>=100?'🔴 Dépassé':'⚠️ '+pct+'%'}</span>`;al.appendChild(a);}
+    if(pct>=80){hasAl=true;const a=document.createElement('div');a.className='alert-row';const label=pct>=100?'💸 Budget épuisé':'⚠️ '+pct+'%';a.innerHTML=`<span style="font-size:14px;font-weight:500;">${cat.icon} ${cat.name}</span><span class="badge ${pct>=100?'bdanger':'bwarn'}">${label}</span>`;al.appendChild(a);}
   });
   if(!hasAl)al.innerHTML='<div class="empty" style="padding:14px 0;"><div class="ei">🎉</div>Aucune alerte !</div>';
 }
+
 function openBudgetModal(name){editingBudgetCat=name;const c=catOf(name);document.getElementById('bm-title').textContent=`${c.icon} ${name}`;document.getElementById('bm-sub').textContent=`Budget actuel : ${fmt(c.budget)} / mois`;document.getElementById('bm-input').value=c.budget;document.getElementById('bm-modal').classList.add('open');setTimeout(()=>document.getElementById('bm-input').select(),150)}
 async function saveBudgetEdit(){
   const val=parseFloat(document.getElementById('bm-input').value);if(!val||val<=0){toast('⚠️ Invalide');return}
