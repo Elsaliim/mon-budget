@@ -482,6 +482,23 @@
   </div>
 </div>
 
+<!-- CAT DETAIL MODAL -->
+<div class="modal-ov" id="cat-detail-modal" onclick="maybeClose('cat-detail-modal',event)">
+  <div class="modal-box">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px;">
+      <div id="cd-icon" style="width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;"></div>
+      <div>
+        <div class="modal-title" id="cd-title" style="margin-bottom:0;"></div>
+        <div style="font-size:13px;color:var(--t2);" id="cd-sub"></div>
+      </div>
+    </div>
+    <div id="cd-progress" style="margin:14px 0 16px;"></div>
+    <div class="sec-title">Transactions</div>
+    <div id="cd-tx-list"></div>
+    <div class="btn-row" style="margin-top:16px;"><button class="btn btn-ghost" onclick="closeModal('cat-detail-modal')">Fermer</button></div>
+  </div>
+</div>
+
 <!-- BUDGET EDIT -->
 <div class="modal-ov" id="bm-modal" onclick="maybeClose('bm-modal',event)">
   <div class="modal-box">
@@ -913,7 +930,7 @@ function updateBudget(){
     const pct=cat.budget>0?Math.round((spent/cat.budget)*100):0;const pctBar=Math.min(100,pct);
     const share=totalBudget>0?Math.round((cat.budget/totalBudget)*100):0;
     const bc=pct>=100?'#E24B4A':pct>=80?'#EF9F27':(cat.color||'#7F77DD');
-    const item=document.createElement('div');item.className='budget-item';
+    const item=document.createElement('div');item.className='budget-item';item.style.cursor='pointer';item.onclick=(e)=>{if(!e.target.closest('.icon-btn'))openCatDetail(cat.name)};
     item.innerHTML=`<div class="bh"><div class="bname">${cat.icon} ${cat.name}</div><div class="bright"><div class="bamts">${fmt(spent)} / ${fmt(cat.budget)}</div><span style="font-size:10px;background:var(--pl);color:var(--pd);padding:2px 6px;border-radius:8px;font-weight:600;">${share}%</span><button class="icon-btn" onclick="openBudgetModal('${cat.name}')">✏️</button></div></div><div class="bar-bg"><div class="bar-fill" style="width:${pctBar}%;background:${bc};"></div></div>`;
     list.appendChild(item);
     if(pct>=80){hasAl=true;const a=document.createElement('div');a.className='alert-row';const realPct=cat.budget>0?Math.round((spent/cat.budget)*100):0;
@@ -1038,6 +1055,62 @@ async function deleteCat(){
 // ── EMOJI ──────────────────────────────────────────────────────────────
 function toggleEP(prefix){const p=document.getElementById(`${prefix}-ep-picker`);const show=p.style.display==='none';p.style.display=show?'block':'none';if(show)buildEG(prefix,document.getElementById(`${prefix}-ep`).textContent)}
 function buildEG(prefix,sel){const g=document.getElementById(`${prefix}-eg`);g.innerHTML='';EMOJIS.forEach(em=>{const b=document.createElement('button');b.className='emoji-opt'+(em===sel?' sel':'');b.textContent=em;b.onclick=()=>{document.getElementById(`${prefix}-ep`).textContent=em;g.querySelectorAll('.emoji-opt').forEach(x=>x.classList.toggle('sel',x.textContent===em))};g.appendChild(b)})}
+
+// ── CAT DETAIL ───────────────────────────────────────────────────────
+function openCatDetail(catName){
+  const cat=catOf(catName);
+  const txs=txForMonth().filter(t=>t.cat===catName&&t.type==='dep');
+  const spent=txs.reduce((s,t)=>s+t.amount,0);
+  const pct=cat.budget>0?Math.round((spent/cat.budget)*100):0;
+  const pctBar=Math.min(100,pct);
+  const bc=pct>=100?'#E24B4A':pct>=80?'#EF9F27':(cat.color||'#7F77DD');
+
+  // Header
+  const iconEl=document.getElementById('cd-icon');
+  iconEl.textContent=cat.icon;
+  iconEl.style.background=(cat.color||'#7F77DD')+'22';
+  document.getElementById('cd-title').textContent=catName;
+  document.getElementById('cd-sub').textContent=fmt(spent)+' dépensés sur '+fmt(cat.budget);
+
+  // Progress bar
+  const overLabel=pct>100?'📛 Dépassé de '+(pct-100)+'%':pct===100?'💸 Budget épuisé':'';
+  document.getElementById('cd-progress').innerHTML=`
+    <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--t2);margin-bottom:6px;">
+      <span>${pct}% utilisé</span>
+      <span style="color:${bc};font-weight:600;">${overLabel}</span>
+    </div>
+    <div class="bar-bg" style="height:10px;"><div class="bar-fill" style="width:${pctBar}%;background:${bc};"></div></div>
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--t2);margin-top:5px;">
+      <span>0 €</span><span>Restant : ${fmt(Math.max(0,cat.budget-spent))}</span><span>${fmt(cat.budget)}</span>
+    </div>`;
+
+  // Transactions list
+  const list=document.getElementById('cd-tx-list');
+  list.innerHTML='';
+  if(!txs.length){
+    list.innerHTML='<div class="empty" style="padding:20px 0;"><div class="ei">🧾</div>Aucune dépense ce mois-ci.</div>';
+  }else{
+    txs.forEach(t=>{
+      const d=document.createElement('div');
+      d.className='tx-item';
+      d.style.cursor='pointer';
+      const ds=new Date(t.date+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
+      const autoTag=t.auto?'<span class="auto-tag">🔁</span>':'';
+      d.innerHTML=`<div class="tx-ico" style="background:${(cat.color||'#7F77DD')}22;">${cat.icon}</div>
+        <div class="tx-info"><div class="tx-name">${t.description}${autoTag}</div><div class="tx-date">${ds}</div></div>
+        <div class="tx-amt neg">-${fmt(t.amount)}</div>`;
+      d.onclick=()=>{closeModal('cat-detail-modal');openTxEdit(t.id)};
+      list.appendChild(d);
+    });
+    // Total row
+    const total=document.createElement('div');
+    total.style.cssText='display:flex;justify-content:space-between;padding:12px 0 0;border-top:.5px solid var(--b);margin-top:4px;font-weight:600;font-size:14px;color:var(--t);';
+    total.innerHTML=`<span>Total</span><span style="color:var(--r);">-${fmt(spent)}</span>`;
+    list.appendChild(total);
+  }
+
+  document.getElementById('cat-detail-modal').classList.add('open');
+}
 
 // ── PAGE NAV ──────────────────────────────────────────────────────────
 function updateAll(){updateHome();updateBudget()}
