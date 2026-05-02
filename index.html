@@ -564,25 +564,88 @@ async function signOut(){
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────
+let appReady = false;
+
 async function init(){
-  const{data:{session}}=await supa.auth.getSession();
-  if(session){
-    currentUser=session.user;
-    await loadAllData();
-    showApp();
-  }else{
+  // Timeout de sécurité — si Supabase ne répond pas en 8s, on affiche l'erreur
+  const timeout = setTimeout(()=>{
+    if(!appReady){
+      document.getElementById('loading-screen').classList.add('hidden');
+      document.getElementById('auth-screen').classList.remove('hidden');
+      toast('⚠️ Connexion lente, réessayez');
+    }
+  }, 8000);
+
+  try{
+    const{data:{session}}=await supa.auth.getSession();
+    if(session){
+      currentUser=session.user;
+      // Charger depuis le cache local d'abord pour affichage instantané
+      loadFromCache();
+      showApp();
+      appReady=true;
+      clearTimeout(timeout);
+      // Puis sync en arrière-plan
+      syncInBackground();
+    }else{
+      clearTimeout(timeout);
+      document.getElementById('loading-screen').classList.add('hidden');
+      document.getElementById('auth-screen').classList.remove('hidden');
+    }
+  }catch(e){
+    clearTimeout(timeout);
     document.getElementById('loading-screen').classList.add('hidden');
     document.getElementById('auth-screen').classList.remove('hidden');
   }
+
   supa.auth.onAuthStateChange(async(event,session)=>{
-    if(event==='SIGNED_IN'&&session){
+    if(event==='SIGNED_IN'&&session&&!appReady){
       currentUser=session.user;
       document.getElementById('auth-screen').classList.add('hidden');
       document.getElementById('loading-screen').classList.remove('hidden');
       await loadAllData();
+      appReady=true;
       showApp();
     }
   });
+
+  // Quand l'utilisateur revient sur l'app, sync silencieuse sans écran de chargement
+  document.addEventListener('visibilitychange',()=>{
+    if(document.visibilityState==='visible'&&appReady&&currentUser){
+      syncInBackground();
+    }
+  });
+}
+
+function loadFromCache(){
+  try{
+    const uid=currentUser.id;
+    TX=JSON.parse(localStorage.getItem('cache_tx_'+uid)||'[]');
+    CATS=JSON.parse(localStorage.getItem('cache_cats_'+uid)||'[]');
+    RECUR=JSON.parse(localStorage.getItem('cache_recur_'+uid)||'[]');
+    if(CATS.length===0)CATS=DEF_CATS;
+  }catch(e){CATS=DEF_CATS;}
+}
+
+function saveToCache(){
+  try{
+    const uid=currentUser.id;
+    localStorage.setItem('cache_tx_'+uid,JSON.stringify(TX));
+    localStorage.setItem('cache_cats_'+uid,JSON.stringify(CATS));
+    localStorage.setItem('cache_recur_'+uid,JSON.stringify(RECUR));
+  }catch(e){}
+}
+
+async function syncInBackground(){
+  try{
+    setSyncState('syncing');
+    await loadAllData();
+    saveToCache();
+    updateAll();
+    setSyncState('ok');
+  }catch(e){
+    setSyncState('error');
+  }
 }
 
 function showApp(){
