@@ -136,6 +136,7 @@
     .type-toggle{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
     .type-btn{padding:12px;border:1.5px solid var(--b);border-radius:var(--rsm);background:var(--s);color:var(--t2);font-size:15px;cursor:pointer;text-align:center;font-weight:500;-webkit-tap-highlight-color:transparent}
     .type-btn.adep{background:var(--rl);border-color:var(--r);color:var(--r)}
+    .type-btn.asav{background:var(--gl);border-color:var(--g);color:var(--g)}
     .type-btn.arev{background:var(--gl);border-color:var(--g);color:var(--g)}
     .fgroup{margin-bottom:14px}
     .flabel{font-size:13px;color:var(--t2);margin-bottom:6px;display:block;font-weight:500}
@@ -340,9 +341,14 @@
     <!-- AJOUTER -->
     <div class="page" id="page-add">
       <div class="card">
-        <div class="type-toggle">
+        <div class="type-toggle" style="grid-template-columns:1fr 1fr 1fr;">
           <div class="type-btn adep" id="btn-dep" onclick="setType('dep')">— Dépense</div>
           <div class="type-btn" id="btn-rev" onclick="setType('rev')">+ Revenu</div>
+          <div class="type-btn" id="btn-sav" onclick="setType('sav')" style="font-size:13px;">💰 Épargne</div>
+        </div>
+        <div id="a-sav-info" style="display:none;background:var(--gl);border-radius:var(--rsm);padding:10px 12px;margin-bottom:12px;font-size:12px;color:var(--g);line-height:1.5;">
+          <strong>Virement vers épargne</strong> — diminue votre solde et augmente votre épargne cumulée.<br>
+          Pour un retrait, choisissez <strong>Retrait épargne</strong>.
         </div>
         <div class="fgroup"><label class="flabel">Montant (€)</label><input type="number" id="a-amount" placeholder="0,00" min="0" step="0.01" inputmode="decimal"/></div>
         <div class="fgroup"><label class="flabel">Description</label><input type="text" id="a-desc" placeholder="Ex : Courses Lidl"/></div>
@@ -855,30 +861,52 @@ function setType(t){
   addType=t;
   document.getElementById('btn-dep').className='type-btn'+(t==='dep'?' adep':'');
   document.getElementById('btn-rev').className='type-btn'+(t==='rev'?' arev':'');
-  // Always show category — rebuild with special options for revenue
-  document.getElementById('a-cat-group').style.display='block';
+  document.getElementById('btn-sav').className='type-btn'+(t==='sav'?' asav':'');
+  const catGroup=document.getElementById('a-cat-group');
+  const savInfo=document.getElementById('a-sav-info');
   const sel=document.getElementById('a-cat');
   sel.innerHTML='';
-  if(t==='rev'){
-    // Revenue categories: general + épargne withdrawal
-    [['Revenu','💼 Revenu général'],[CAT_SAVINGS,'💰 Retrait épargne']].forEach(([val,lbl])=>{
+  savInfo.style.display='none';
+  if(t==='dep'){
+    catGroup.style.display='block';
+    buildCatSel('a-cat');
+  }else if(t==='rev'){
+    catGroup.style.display='block';
+    [['Revenu','💼 Revenu général']].forEach(([val,lbl])=>{
       const o=document.createElement('option');o.value=val;o.textContent=lbl;sel.appendChild(o);
     });
-  }else{
-    buildCatSel('a-cat');
+  }else if(t==='sav'){
+    catGroup.style.display='block';
+    savInfo.style.display='block';
+    [['sav_in','💰 Virement vers épargne'],['sav_out','💸 Retrait épargne']].forEach(([val,lbl])=>{
+      const o=document.createElement('option');o.value=val;o.textContent=lbl;sel.appendChild(o);
+    });
   }
 }
 
 async function addTransaction(){
   const amount=parseFloat(document.getElementById('a-amount').value);
   const desc=document.getElementById('a-desc').value.trim();
-  const cat=document.getElementById('a-cat').value;
+  const catVal=document.getElementById('a-cat').value;
   const date=document.getElementById('a-date').value;
   if(!amount||amount<=0){toast('⚠️ Montant invalide');return}
   if(!desc){toast('⚠️ Description manquante');return}
-  await dbAddTx({type:addType,amount,description:desc,cat,date,auto:false});
+  if(addType==='sav'){
+    if(catVal==='sav_in'){
+      // Virement épargne: 1 dépense (diminue solde) + 1 entrée épargne interne
+      await dbAddTx({type:'dep',amount,description:desc,cat:CAT_SAVINGS,date,auto:false,sav_type:'in'});
+      toast('✓ Virement épargne enregistré');
+    }else{
+      // Retrait épargne: 1 revenu (augmente solde) + 1 sortie épargne interne
+      await dbAddTx({type:'rev',amount,description:desc,cat:CAT_SAVINGS,date,auto:false,sav_type:'out'});
+      toast('✓ Retrait épargne enregistré');
+    }
+  }else{
+    const cat=addType==='rev'?'Revenu':catVal;
+    await dbAddTx({type:addType,amount,description:desc,cat,date,auto:false});
+    toast(addType==='dep'?'✓ Dépense ajoutée':'✓ Revenu ajouté');
+  }
   document.getElementById('a-amount').value='';document.getElementById('a-desc').value='';
-  toast(addType==='dep'?'✓ Dépense ajoutée':'✓ Revenu ajouté');
   updateAll();goPage('home');
 }
 
@@ -912,18 +940,37 @@ async function deleteTx(){
 }
 
 // -- HOME --
-function calcTotals(){let rev=0,dep=0;txForMonth().forEach(t=>{if(t.type==='rev')rev+=t.amount;else dep+=t.amount});return{rev,dep,bal:rev-dep}}
+function calcTotals(){
+  let rev=0,dep=0;
+  txForMonth().forEach(t=>{
+    // Exclude savings transfers from main rev/dep counters — they go to épargne pot
+    if(t.sav_type)return;
+    if(t.type==='rev')rev+=t.amount;
+    else dep+=t.amount;
+  });
+  // Also add sav_out as revenue and sav_in as expense for balance calc
+  let savIn=0,savOut=0;
+  txForMonth().forEach(t=>{
+    if(t.sav_type==='in')savIn+=t.amount;
+    if(t.sav_type==='out')savOut+=t.amount;
+  });
+  const bal=(rev+savOut)-(dep+savIn);
+  return{rev,dep,savIn,savOut,bal};
+}
 
 function updateHome(){
   const{rev,dep,bal}=calcTotals();
   document.getElementById('h-bal').textContent=(bal>=0?'+':'')+fmt(bal);
-  document.getElementById('h-rev').textContent=fmt(rev);document.getElementById('h-dep').textContent=fmt(dep);
+  document.getElementById('h-rev').textContent=fmt(rev+(savOut||0));
+  document.getElementById('h-dep').textContent=fmt(dep+(savIn||0));
   const ep=txForMonth().filter(t=>t.cat===CAT_SAVINGS).reduce((s,t)=>s+t.amount,0);
   document.getElementById('h-ep').textContent=fmt(ep);
   document.getElementById('h-ep-pct').textContent=rev>0?Math.round((ep/rev)*100)+'% des revenus':'—';
   const epTx=TX.filter(t=>t.cat===CAT_SAVINGS);
-  const epDeposits=epTx.filter(t=>t.type==='dep').reduce((s,t)=>s+t.amount,0);
-  const epWithdrawals=epTx.filter(t=>t.type==='rev').reduce((s,t)=>s+t.amount,0);
+  // sav_in = virement (adds to savings), sav_out = retrait (removes from savings)
+  // Old-style: dep=savings deposit, rev=savings withdrawal (for backward compat)
+  const epDeposits=epTx.filter(t=>t.sav_type==='in'||(!t.sav_type&&t.type==='dep')).reduce((s,t)=>s+t.amount,0);
+  const epWithdrawals=epTx.filter(t=>t.sav_type==='out'||(!t.sav_type&&t.type==='rev')).reduce((s,t)=>s+t.amount,0);
   const epCumul=epDeposits-epWithdrawals;
   document.getElementById('h-ep-cumul').textContent=fmt(Math.max(0,epCumul));
   document.getElementById('h-ep-in').textContent=fmt(epDeposits);
@@ -1100,8 +1147,8 @@ function buildEG(prefix,sel){const g=document.getElementById(`${prefix}-eg`);g.i
 // -- EPARGNE DETAIL --
 function openEpargneDetail(){
   const epTx=TX.filter(t=>t.cat===CAT_SAVINGS).sort((a,b)=>b.date.localeCompare(a.date));
-  const deps=epTx.filter(t=>t.type==='dep');
-  const revs=epTx.filter(t=>t.type==='rev');
+  const deps=epTx.filter(t=>t.sav_type==='in'||(!t.sav_type&&t.type==='dep'));
+  const revs=epTx.filter(t=>t.sav_type==='out'||(!t.sav_type&&t.type==='rev'));
   const totalDep=deps.reduce((s,t)=>s+t.amount,0);
   const totalRev=revs.reduce((s,t)=>s+t.amount,0);
   const net=totalDep-totalRev;
@@ -1128,17 +1175,17 @@ function openEpargneDetail(){
     epTx.forEach(t=>{
       const d=document.createElement('div');d.className='tx-item';d.style.cursor='pointer';
       const ds=new Date(t.date+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
-      const isDep=t.type==='dep';
+      const isDeposit=t.sav_type==='in'||(!t.sav_type&&t.type==='dep');
       const autoTag=t.auto?'<span class="auto-tag">🔁</span>':'';
       d.innerHTML=`
-        <div class="tx-ico" style="background:${isDep?'#EAF3DE':'#FCEBEB'};">
-          ${isDep?'💰':'💸'}
+        <div class="tx-ico" style="background:${isDeposit?'#EAF3DE':'#FCEBEB'};">
+          ${isDeposit?'💰':'💸'}
         </div>
         <div class="tx-info">
           <div class="tx-name">${t.description}${autoTag}</div>
-          <div class="tx-date">${ds} · ${isDep?'Dépôt':'Retrait'}</div>
+          <div class="tx-date">${ds} · ${isDeposit?'Virement':'Retrait'}</div>
         </div>
-        <div class="tx-amt ${isDep?'pos':'neg'}">${isDep?'+':'-'}${fmt(t.amount)}</div>`;
+        <div class="tx-amt ${isDeposit?'pos':'neg'}">${isDeposit?'+':'-'}${fmt(t.amount)}</div>`;
       d.onclick=()=>{closeModal('ep-modal');openTxEdit(t.id)};
       list.appendChild(d);
     });
