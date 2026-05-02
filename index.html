@@ -851,12 +851,28 @@ function closeMenu(){document.getElementById('sidemenu').classList.remove('open'
 
 // -- FORM --
 let addType='dep';
-function setType(t){addType=t;document.getElementById('btn-dep').className='type-btn'+(t==='dep'?' adep':'');document.getElementById('btn-rev').className='type-btn'+(t==='rev'?' arev':'');document.getElementById('a-cat-group').style.display=t==='rev'?'none':'block'}
+function setType(t){
+  addType=t;
+  document.getElementById('btn-dep').className='type-btn'+(t==='dep'?' adep':'');
+  document.getElementById('btn-rev').className='type-btn'+(t==='rev'?' arev':'');
+  // Always show category — rebuild with special options for revenue
+  document.getElementById('a-cat-group').style.display='block';
+  const sel=document.getElementById('a-cat');
+  sel.innerHTML='';
+  if(t==='rev'){
+    // Revenue categories: general + épargne withdrawal
+    [['Revenu','💼 Revenu général'],[CAT_SAVINGS,'💰 Retrait épargne']].forEach(([val,lbl])=>{
+      const o=document.createElement('option');o.value=val;o.textContent=lbl;sel.appendChild(o);
+    });
+  }else{
+    buildCatSel('a-cat');
+  }
+}
 
 async function addTransaction(){
   const amount=parseFloat(document.getElementById('a-amount').value);
   const desc=document.getElementById('a-desc').value.trim();
-  const cat=addType==='rev'?'Revenu':document.getElementById('a-cat').value;
+  const cat=document.getElementById('a-cat').value;
   const date=document.getElementById('a-date').value;
   if(!amount||amount<=0){toast('⚠️ Montant invalide');return}
   if(!desc){toast('⚠️ Description manquante');return}
