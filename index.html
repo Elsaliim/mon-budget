@@ -322,10 +322,17 @@
         <div class="metric"><div class="ml">Épargne ce mois</div><div class="mv" id="h-ep">0 €</div><div class="ms" id="h-ep-pct">—</div></div>
         <div class="metric"><div class="ml">Récurrents</div><div class="mv" id="h-rec">0 €</div><div class="ms" id="h-rec-n">—</div></div>
       </div>
-      <div class="card" style="background:linear-gradient(135deg,#639922,#8BBF3A);color:white;padding:16px 20px;margin-bottom:12px;">
-        <div style="font-size:12px;opacity:.8;margin-bottom:4px;">💰 Épargne totale cumulée</div>
+      <div class="card" style="background:linear-gradient(135deg,#639922,#8BBF3A);color:white;padding:16px 20px;margin-bottom:12px;cursor:pointer;-webkit-tap-highlight-color:transparent;" onclick="openEpargneDetail()">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div style="font-size:12px;opacity:.8;margin-bottom:4px;">💰 Épargne totale cumulée</div>
+          <div style="font-size:11px;opacity:.7;background:rgba(255,255,255,.2);padding:3px 8px;border-radius:10px;">Voir détail →</div>
+        </div>
         <div style="font-size:30px;font-weight:700;letter-spacing:-0.5px;" id="h-ep-cumul">0 €</div>
-        <div style="font-size:12px;opacity:.75;margin-top:4px;" id="h-ep-cumul-sub">Depuis le début</div>
+        <div style="display:flex;gap:16px;margin-top:8px;">
+          <div><div style="font-size:10px;opacity:.7;">Dépôts</div><div style="font-size:14px;font-weight:600;" id="h-ep-in">0 €</div></div>
+          <div><div style="font-size:10px;opacity:.7;">Retraits</div><div style="font-size:14px;font-weight:600;" id="h-ep-out">0 €</div></div>
+          <div><div style="font-size:10px;opacity:.7;">Depuis</div><div style="font-size:14px;font-weight:600;" id="h-ep-since">—</div></div>
+        </div>
       </div>
       <div class="card"><div class="sec-title">Transactions du mois</div><div id="home-tx"></div></div>
     </div>
@@ -482,6 +489,18 @@
   </div>
 </div>
 
+<!-- ÉPARGNE DETAIL MODAL -->
+<div class="modal-ov" id="ep-modal" onclick="maybeClose('ep-modal',event)">
+  <div class="modal-box">
+    <div class="modal-title">💰 Historique épargne</div>
+    <div class="modal-sub">Tous vos mouvements d'épargne</div>
+    <div id="ep-summary" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;"></div>
+    <div class="sec-title">Mouvements</div>
+    <div id="ep-tx-list"></div>
+    <div class="btn-row" style="margin-top:16px;"><button class="btn btn-ghost" onclick="closeModal('ep-modal')">Fermer</button></div>
+  </div>
+</div>
+
 <!-- CAT DETAIL MODAL -->
 <div class="modal-ov" id="cat-detail-modal" onclick="maybeClose('cat-detail-modal',event)">
   <div class="modal-box">
@@ -512,15 +531,16 @@
 <div class="toast" id="toast"></div>
 
 <script>
-// ── SUPABASE ──────────────────────────────────────────────────────────
+// -- SUPABASE --
 const SUPA_URL = 'https://wdpcdtvufwnptrgojqge.supabase.co';
 const SUPA_KEY = 'sb_publishable_cPwIl9SFjacHj4UaTld2LA_ZhBI7I_A';
 const supa = supabase.createClient(SUPA_URL, SUPA_KEY);
 
-// ── EMOJI LIB ────────────────────────────────────────────────────────
+// -- EMOJI LIB --
 const EMOJIS=['🛒','🏠','🚌','🎮','💊','👕','💰','🍽️','📱','✈️','🐾','🚗','🎬','🎵','📚','🏋️','🌿','🧴','🎁','💆','🍕','☕','🍺','🎨','🏖️','🌍','🛠️','💡','🧹','🧺','🏦','💳','📦','🎓','🖥️','⚽','🎸','🧸','🎪','🌸','🚀','🏥','🧃','🍎','🐶','🐱','🌊','🎭','🎯','🔑','🧠','❤️','⭐','🔥','💎','🌙','🌞','🎊','🎀','🍀','🔁','📅','🏡','💼','🎉','🛍️','🧾','💸','🏷️','🪴'];
 
-// ── DEFAULT CATS ──────────────────────────────────────────────────────
+// -- DEFAULT CATS --
+const CAT_SAVINGS='Épargne';
 const DEF_CATS=[
   {name:'Alimentation',icon:'🛒',color:'#7F77DD',budget:300},
   {name:'Logement',icon:'🏠',color:'#1D9E75',budget:800},
@@ -528,7 +548,7 @@ const DEF_CATS=[
   {name:'Loisirs',icon:'🎮',color:'#D85A30',budget:80},
   {name:'Santé',icon:'💊',color:'#D4537E',budget:50},
   {name:'Vêtements',icon:'👕',color:'#EF9F27',budget:60},
-  {name:'Épargne',icon:'💰',color:'#639922',budget:200},
+  {name:CAT_SAVINGS,icon:'💰',color:'#639922',budget:200},
   {name:'Restaurants',icon:'🍽️',color:'#888780',budget:100},
   {name:'Abonnements',icon:'📱',color:'#534AB7',budget:40},
   {name:'Voyages',icon:'✈️',color:'#E24B4A',budget:150},
@@ -536,20 +556,20 @@ const DEF_CATS=[
 const COLOR_POOL=['#7F77DD','#1D9E75','#378ADD','#D85A30','#D4537E','#EF9F27','#639922','#888780','#534AB7','#E24B4A'];
 const MONTHS_FR=['Janv.','Févr.','Mars','Avr.','Mai','Juin','Juil.','Août','Sept.','Oct.','Nov.','Déc.'];
 
-// ── STATE ──────────────────────────────────────────────────────────────
+// -- STATE --
 let currentUser = null;
 let TX = [], CATS = [], RECUR = [];
 const NOW = new Date();
 let vY = NOW.getFullYear(), vM = NOW.getMonth();
 
-// ── SYNC DOT ──────────────────────────────────────────────────────────
+// -- SYNC DOT --
 function setSyncState(s){const d=document.getElementById('sync-dot');d.className='sync-dot'+(s==='syncing'?' syncing':s==='error'?' error':'')}
 
-// ── TOAST ─────────────────────────────────────────────────────────────
+// -- TOAST --
 let toastT;
 function toast(msg){clearTimeout(toastT);const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');toastT=setTimeout(()=>t.classList.remove('show'),2500)}
 
-// ── AUTH ──────────────────────────────────────────────────────────────
+// -- AUTH --
 let authMode = 'login';
 function switchAuthTab(mode){
   authMode=mode;
@@ -585,11 +605,11 @@ async function signOut(){
   toast('À bientôt !');
 }
 
-// ── INIT ──────────────────────────────────────────────────────────────
+// -- INIT --
 let appReady = false;
 
 async function init(){
-  // Timeout de sécurité — si Supabase ne répond pas en 8s, on affiche l'erreur
+  // Timeout safety - if Supabase does not respond in 8s
   const timeout = setTimeout(()=>{
     if(!appReady){
       document.getElementById('loading-screen').classList.add('hidden');
@@ -602,12 +622,12 @@ async function init(){
     const{data:{session}}=await supa.auth.getSession();
     if(session){
       currentUser=session.user;
-      // Charger depuis le cache local d'abord pour affichage instantané
+      // Load from local cache first for instant display
       loadFromCache();
       showApp();
       appReady=true;
       clearTimeout(timeout);
-      // Puis sync en arrière-plan
+      // Then sync in background
       syncInBackground();
     }else{
       clearTimeout(timeout);
@@ -631,7 +651,7 @@ async function init(){
     }
   });
 
-  // Quand l'utilisateur revient sur l'app, sync silencieuse sans écran de chargement
+  // When user returns to app, silent sync without loading screen
   document.addEventListener('visibilitychange',()=>{
     if(document.visibilityState==='visible'&&appReady&&currentUser){
       syncInBackground();
@@ -684,7 +704,7 @@ function showApp(){
   updateAll();
 }
 
-// ── SUPABASE DB ────────────────────────────────────────────────────────
+// -- SUPABASE DB --
 async function loadAllData(){
   setSyncState('syncing');
   try{
@@ -732,7 +752,7 @@ async function migrateFromLocalStorage(){
   localStorage.setItem('mb_migrated_'+currentUser.id,'1');
 }
 
-// ── DB HELPERS ─────────────────────────────────────────────────────────
+// -- DB HELPERS --
 async function dbAddTx(tx){
   setSyncState('syncing');
   const{data,error}=await supa.from('transactions').insert({user_id:currentUser.id,...tx}).select().single();
@@ -770,7 +790,7 @@ async function dbDeleteCat(name){
   await supa.from('categories').delete().eq('user_id',currentUser.id).eq('name',name);
 }
 
-// ── MONTH ──────────────────────────────────────────────────────────────
+// -- MONTH --
 function mKey(y,m){return `${y}-${String(m+1).padStart(2,'0')}`}
 function curKey(){return mKey(vY,vM)}
 function isNow(){return vY===NOW.getFullYear()&&vM===NOW.getMonth()}
@@ -782,7 +802,7 @@ function updateMonthUI(){
 }
 function changeMonth(d){vM+=d;if(vM>11){vM=0;vY++}if(vM<0){vM=11;vY--}updateMonthUI();applyRecur();updateAll();const pg=document.querySelector('.page.active');if(pg&&pg.id==='page-dash')setTimeout(buildDash,80)}
 
-// ── MONTH PICKER ──────────────────────────────────────────────────────
+// -- MONTH PICKER --
 let mpY=NOW.getFullYear();
 function openMonthPicker(){mpY=vY;renderMP();document.getElementById('mp-modal').classList.add('open')}
 function mpYear(d){mpY+=d;renderMP()}
@@ -799,7 +819,7 @@ function renderMP(){
   });
 }
 
-// ── RECUR AUTO-INJECT ──────────────────────────────────────────────────
+// -- RECUR AUTO-INJECT --
 async function applyRecur(){
   const key=curKey();
   for(const r of RECUR){
@@ -819,7 +839,7 @@ function recurActive(r,y,m){
   return true;
 }
 
-// ── HELPERS ────────────────────────────────────────────────────────────
+// -- HELPERS --
 function fmt(n){return Math.round(n).toLocaleString('fr-FR')+' €'}
 function catOf(name){return CATS.find(c=>c.name===name)||{icon:'💳',color:'#888780',budget:0}}
 function txForMonth(){const k=curKey();return TX.filter(t=>t.date&&t.date.startsWith(k))}
@@ -829,7 +849,7 @@ function closeModal(id){document.getElementById(id).classList.remove('open')}
 function openMenu(){document.getElementById('sidemenu').classList.add('open');document.getElementById('overlay').classList.add('open')}
 function closeMenu(){document.getElementById('sidemenu').classList.remove('open');document.getElementById('overlay').classList.remove('open')}
 
-// ── FORM ──────────────────────────────────────────────────────────────
+// -- FORM --
 let addType='dep';
 function setType(t){addType=t;document.getElementById('btn-dep').className='type-btn'+(t==='dep'?' adep':'');document.getElementById('btn-rev').className='type-btn'+(t==='rev'?' arev':'');document.getElementById('a-cat-group').style.display=t==='rev'?'none':'block'}
 
@@ -846,7 +866,7 @@ async function addTransaction(){
   updateAll();goPage('home');
 }
 
-// ── TX EDIT ───────────────────────────────────────────────────────────
+// -- TX EDIT --
 let editingTxId=null;
 function openTxEdit(id){
   const t=TX.find(t=>t.id==id);if(!t)return;
@@ -875,20 +895,25 @@ async function deleteTx(){
   closeModal('tx-modal');toast('🗑 Supprimée');updateAll();
 }
 
-// ── HOME ──────────────────────────────────────────────────────────────
+// -- HOME --
 function calcTotals(){let rev=0,dep=0;txForMonth().forEach(t=>{if(t.type==='rev')rev+=t.amount;else dep+=t.amount});return{rev,dep,bal:rev-dep}}
 
 function updateHome(){
   const{rev,dep,bal}=calcTotals();
   document.getElementById('h-bal').textContent=(bal>=0?'+':'')+fmt(bal);
   document.getElementById('h-rev').textContent=fmt(rev);document.getElementById('h-dep').textContent=fmt(dep);
-  const ep=txForMonth().filter(t=>t.cat==='Épargne').reduce((s,t)=>s+t.amount,0);
+  const ep=txForMonth().filter(t=>t.cat===CAT_SAVINGS).reduce((s,t)=>s+t.amount,0);
   document.getElementById('h-ep').textContent=fmt(ep);
   document.getElementById('h-ep-pct').textContent=rev>0?Math.round((ep/rev)*100)+'% des revenus':'—';
-  const epCumul=TX.filter(t=>t.cat==='Épargne').reduce((s,t)=>s+t.amount,0);
-  document.getElementById('h-ep-cumul').textContent=fmt(epCumul);
-  const firstEpDate=TX.filter(t=>t.cat==='Épargne').map(t=>t.date).sort()[0];
-  document.getElementById('h-ep-cumul-sub').textContent=firstEpDate?'Depuis '+new Date(firstEpDate+'T12:00:00').toLocaleDateString('fr-FR',{month:'long',year:'numeric'}):'Toutes transactions confondues';
+  const epTx=TX.filter(t=>t.cat===CAT_SAVINGS);
+  const epDeposits=epTx.filter(t=>t.type==='dep').reduce((s,t)=>s+t.amount,0);
+  const epWithdrawals=epTx.filter(t=>t.type==='rev').reduce((s,t)=>s+t.amount,0);
+  const epCumul=epDeposits-epWithdrawals;
+  document.getElementById('h-ep-cumul').textContent=fmt(Math.max(0,epCumul));
+  document.getElementById('h-ep-in').textContent=fmt(epDeposits);
+  document.getElementById('h-ep-out').textContent=fmt(epWithdrawals);
+  const firstEpDate=epTx.map(t=>t.date).sort()[0];
+  document.getElementById('h-ep-since').textContent=firstEpDate?new Date(firstEpDate+'T12:00:00').toLocaleDateString('fr-FR',{month:'short',year:'numeric'}):'—';
   const rd=RECUR.filter(r=>r.rtype!=='rev').reduce((s,r)=>s+r.amount,0);
   document.getElementById('h-rec').textContent=fmt(rd);
   document.getElementById('h-rec-n').textContent=RECUR.filter(r=>r.rtype!=='rev').length+' charge(s)';
@@ -906,7 +931,7 @@ function updateHome(){
   });
 }
 
-// ── BUDGET ────────────────────────────────────────────────────────────
+// -- BUDGET --
 let editingBudgetCat=null;
 function updateBudget(){
   const byCat={};txForMonth().filter(t=>t.type==='dep').forEach(t=>{byCat[t.cat]=(byCat[t.cat]||0)+t.amount});
@@ -946,7 +971,7 @@ async function saveBudgetEdit(){
   closeModal('bm-modal');toast(`✓ Budget mis à jour`);updateBudget();
 }
 
-// ── RECUR ─────────────────────────────────────────────────────────────
+// -- RECUR --
 let editingRecurId=null,recurModalType='dep';
 function updateRecurPage(rtype){
   const isDep=rtype==='dep';
@@ -1009,7 +1034,7 @@ async function deleteRecur(){
   closeModal('recur-modal');toast('🗑 Supprimé');updateAll();updateRecurPage(recurModalType);
 }
 
-// ── CATEGORIES ────────────────────────────────────────────────────────
+// -- CATEGORIES --
 let editingCatName=null;
 function updateCatPage(){
   const list=document.getElementById('cat-list');list.innerHTML='';
@@ -1052,11 +1077,60 @@ async function deleteCat(){
   closeModal('cat-modal');toast('🗑 Supprimée');updateAll();updateCatPage();
 }
 
-// ── EMOJI ──────────────────────────────────────────────────────────────
+// -- EMOJI --
 function toggleEP(prefix){const p=document.getElementById(`${prefix}-ep-picker`);const show=p.style.display==='none';p.style.display=show?'block':'none';if(show)buildEG(prefix,document.getElementById(`${prefix}-ep`).textContent)}
 function buildEG(prefix,sel){const g=document.getElementById(`${prefix}-eg`);g.innerHTML='';EMOJIS.forEach(em=>{const b=document.createElement('button');b.className='emoji-opt'+(em===sel?' sel':'');b.textContent=em;b.onclick=()=>{document.getElementById(`${prefix}-ep`).textContent=em;g.querySelectorAll('.emoji-opt').forEach(x=>x.classList.toggle('sel',x.textContent===em))};g.appendChild(b)})}
 
-// ── CAT DETAIL ───────────────────────────────────────────────────────
+// -- EPARGNE DETAIL --
+function openEpargneDetail(){
+  const epTx=TX.filter(t=>t.cat===CAT_SAVINGS).sort((a,b)=>b.date.localeCompare(a.date));
+  const deps=epTx.filter(t=>t.type==='dep');
+  const revs=epTx.filter(t=>t.type==='rev');
+  const totalDep=deps.reduce((s,t)=>s+t.amount,0);
+  const totalRev=revs.reduce((s,t)=>s+t.amount,0);
+  const net=totalDep-totalRev;
+
+  document.getElementById('ep-summary').innerHTML=`
+    <div style="background:var(--gl);border-radius:8px;padding:10px;text-align:center;">
+      <div style="font-size:10px;color:var(--g);font-weight:600;margin-bottom:2px;">DÉPÔTS</div>
+      <div style="font-size:16px;font-weight:700;color:var(--g);">+${fmt(totalDep)}</div>
+    </div>
+    <div style="background:var(--rl);border-radius:8px;padding:10px;text-align:center;">
+      <div style="font-size:10px;color:var(--r);font-weight:600;margin-bottom:2px;">RETRAITS</div>
+      <div style="font-size:16px;font-weight:700;color:var(--r);">-${fmt(totalRev)}</div>
+    </div>
+    <div style="background:var(--pl);border-radius:8px;padding:10px;text-align:center;">
+      <div style="font-size:10px;color:var(--pd);font-weight:600;margin-bottom:2px;">SOLDE NET</div>
+      <div style="font-size:16px;font-weight:700;color:var(--pd);">${fmt(Math.max(0,net))}</div>
+    </div>`;
+
+  const list=document.getElementById('ep-tx-list');
+  list.innerHTML='';
+  if(!epTx.length){
+    list.innerHTML='<div class="empty"><div class="ei">💰</div>Aucun mouvement d\'epargne.</div>';
+  }else{
+    epTx.forEach(t=>{
+      const d=document.createElement('div');d.className='tx-item';d.style.cursor='pointer';
+      const ds=new Date(t.date+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+      const isDep=t.type==='dep';
+      const autoTag=t.auto?'<span class="auto-tag">🔁</span>':'';
+      d.innerHTML=`
+        <div class="tx-ico" style="background:${isDep?'#EAF3DE':'#FCEBEB'};">
+          ${isDep?'💰':'💸'}
+        </div>
+        <div class="tx-info">
+          <div class="tx-name">${t.description}${autoTag}</div>
+          <div class="tx-date">${ds} · ${isDep?'Dépôt':'Retrait'}</div>
+        </div>
+        <div class="tx-amt ${isDep?'pos':'neg'}">${isDep?'+':'-'}${fmt(t.amount)}</div>`;
+      d.onclick=()=>{closeModal('ep-modal');openTxEdit(t.id)};
+      list.appendChild(d);
+    });
+  }
+  document.getElementById('ep-modal').classList.add('open');
+}
+
+// -- CAT DETAIL --
 function openCatDetail(catName){
   const cat=catOf(catName);
   const txs=txForMonth().filter(t=>t.cat===catName&&t.type==='dep');
@@ -1112,7 +1186,7 @@ function openCatDetail(catName){
   document.getElementById('cat-detail-modal').classList.add('open');
 }
 
-// ── PAGE NAV ──────────────────────────────────────────────────────────
+// -- PAGE NAV --
 function updateAll(){updateHome();updateBudget()}
 function goPage(name){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -1134,7 +1208,7 @@ function openMenuPage(name){
   window.scrollTo(0,0);
 }
 
-// ── DASHBOARD ──────────────────────────────────────────────────────────
+// -- DASHBOARD --
 let dashPeriod='month',dashBarChart=null,dashDonut=null,dashLine=null;
 function setPeriod(p,btn){dashPeriod=p;document.querySelectorAll('.period-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');buildDash()}
 function txForPeriod(){
@@ -1170,7 +1244,7 @@ function buildDash(){
   dashLine=new Chart(document.getElementById('dash-line'),{type:'line',data:{labels:ll,datasets:[{label:'Revenus',data:lr,borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,.1)',fill:true,tension:.4,pointRadius:2},{label:'Dépenses',data:ld,borderColor:'#7F77DD',backgroundColor:'rgba(127,119,221,.1)',fill:true,tension:.4,pointRadius:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{ticks:{callback:v=>v+'€'}}}}});
 }
 
-// ── START ──────────────────────────────────────────────────────────────
+// -- START --
 init();
 </script>
 </body>
