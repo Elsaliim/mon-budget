@@ -1605,11 +1605,11 @@ async function loadBankAccounts(){
   try{
     const resp=await fetch(`${SUPA_FUNCTIONS_URL}/bridge-accounts`,{
       method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':`Bearer ${(await supa.auth.getSession()).data.session.access_token}`},
+      headers:{'Content-Type':'application/json'},
       body:JSON.stringify({access_token:token})
     });
     const data=await resp.json();
-    const accounts=data.resources||data||[];
+    const accounts=Array.isArray(data.resources)?data.resources:Array.isArray(data)?data:[];
     ssBank('accounts',accounts);
     renderBankAccounts(accounts);
   }catch(e){
@@ -1654,16 +1654,20 @@ async function syncBankTransactions(){
   btn.textContent='Sync...';btn.disabled=true;
   setSyncState('syncing');
   try{
-    const accounts=lsBank('accounts',[]);
+    // Reload accounts fresh from API to avoid stale cache
+    await loadBankAccounts();
+    const rawAccounts=lsBank('accounts',null);
+    const accounts=Array.isArray(rawAccounts)?rawAccounts:[];
+    if(!accounts.length){toast('Aucun compte bancaire trouve');btn.textContent='Synchroniser';btn.disabled=false;return;}
     let importedCount=0;
     for(const acc of accounts){
       const resp=await fetch(`${SUPA_FUNCTIONS_URL}/bridge-transactions`,{
         method:'POST',
-        headers:{'Content-Type':'application/json','Authorization':`Bearer ${(await supa.auth.getSession()).data.session.access_token}`},
+        headers:{'Content-Type':'application/json'},
         body:JSON.stringify({access_token:token,account_id:acc.id,since:lsBank('last_sync',null)})
       });
       const data=await resp.json();
-      const txs=data.resources||data||[];
+      const txs=Array.isArray(data.resources)?data.resources:Array.isArray(data)?data:[];
       for(const tx of txs){
         // Check if already imported
         const exists=TX.some(t=>t.bridge_id===tx.id);
