@@ -1543,8 +1543,52 @@ function buildDash(){
 // -- BANK INTEGRATION --
 const SUPA_FUNCTIONS_URL = 'https://wdpcdtvufwnptrgojqge.supabase.co/functions/v1';
 
-function lsBank(k,d){try{const v=localStorage.getItem('bank_'+currentUser?.id+'_'+k);return v?JSON.parse(v):d}catch{return d}}
-function ssBank(k,v){try{localStorage.setItem('bank_'+currentUser?.id+'_'+k,JSON.stringify(v))}catch{}}
+// Bank token stored in Supabase profiles for persistence across reloads
+// Other bank data (accounts cache) stored in localStorage
+function lsBank(k,d){
+  try{
+    const uid=currentUser?.id;
+    const key=uid?'bank_'+uid+'_'+k:'bank_tmp_'+k;
+    const v=localStorage.getItem(key);
+    return v?JSON.parse(v):d;
+  }catch{return d}
+}
+function ssBank(k,v){
+  try{
+    const uid=currentUser?.id;
+    const key=uid?'bank_'+uid+'_'+k:'bank_tmp_'+k;
+    localStorage.setItem(key,JSON.stringify(v));
+  }catch{}
+}
+async function saveBridgeToken(token){
+  if(!token||!currentUser)return;
+  // Save in localStorage for immediate use
+  ssBank('access_token',token);
+  // Save in Supabase for persistence
+  try{
+    await supa.from('profiles').upsert({
+      id:currentUser.id,
+      bridge_access_token:token,
+      bridge_token_updated_at:new Date().toISOString()
+    });
+  }catch(e){console.warn('Could not save token to Supabase:',e.message);}
+}
+async function loadBridgeToken(){
+  // First check localStorage (fast)
+  const cached=lsBank('access_token',null);
+  if(cached)return cached;
+  // Then check Supabase (persistent)
+  if(!currentUser)return null;
+  try{
+    const{data}=await supa.from('profiles').select('bridge_access_token').eq('id',currentUser.id).single();
+    if(data?.bridge_access_token){
+      // Cache locally
+      ssBank('access_token',data.bridge_access_token);
+      return data.bridge_access_token;
+    }
+  }catch(e){console.warn('Could not load token from Supabase:',e.message);}
+  return null;
+}
 
 async function connectBank(){
   const btn=document.getElementById('connect-bank-btn');
@@ -1561,7 +1605,7 @@ async function connectBank(){
     const data=await resp.json();
     if(data.url){
       // Save access token for later use
-      ssBank('access_token',data.access_token);
+      await saveBridgeToken(data.access_token);
       ssBank('return_page','banques');
       // Redirect in same window
       window.location.href=data.url;
@@ -1589,7 +1633,7 @@ async function handleBridgeCallback(){
   if(error){toast('Connexion annulee');return;}
   
   // If returning from Bridge Connect (status=success or access_token saved)
-  const savedToken=lsBank('access_token',null);
+  const savedToken=await loadBridgeToken();
   if(savedToken&&status!=='error'){
     toast('Banque connectee ! Chargement des comptes...');
     openMenuPage('banques');
@@ -1598,7 +1642,7 @@ async function handleBridgeCallback(){
 }
 
 async function loadBankAccounts(){
-  const token=lsBank('access_token',null);
+  const token=await loadBridgeToken();
   if(!token)return;
   document.getElementById('bank-accounts-card').style.display='block';
   document.getElementById('bank-connect-card').querySelector('button').textContent='+ Ajouter une autre banque';
@@ -1648,7 +1692,7 @@ function renderBankAccounts(accounts){
 }
 
 async function syncBankTransactions(){
-  const token=lsBank('access_token',null);
+  const token=await loadBridgeToken();
   if(!token){toast('Banque non connectee');return;}
   const btn=document.getElementById('sync-btn');
   btn.textContent='Sync...';btn.disabled=true;
@@ -1717,8 +1761,8 @@ function guessCatFromBridge(tx){
   return CATS[0]?.name||'Alimentation';
 }
 
-function updateBankPage(){
-  loadBankAccounts();
+async function updateBankPage(){
+  await loadBankAccounts();
 }
 
 // -- START --
