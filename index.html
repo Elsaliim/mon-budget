@@ -227,6 +227,11 @@
     .bank-account-num{font-size:12px;color:var(--t2);margin-top:1px}
     .bank-account-balance{font-size:15px;font-weight:600;color:var(--t);flex-shrink:0}
     .import-badge{display:inline-flex;align-items:center;gap:4px;background:var(--gl);color:var(--g);font-size:11px;font-weight:600;padding:3px 8px;border-radius:10px}
+    .pending-tag{display:inline-flex;align-items:center;background:#FAEEDA;color:#854F0B;font-size:10px;font-weight:600;padding:2px 6px;border-radius:8px;margin-left:5px;vertical-align:middle}
+    .pending-tx{background:var(--al)!important;border-left:3px solid var(--a);}
+    .verify-btn{background:var(--p);color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;padding:5px 10px;cursor:pointer;flex-shrink:0;-webkit-tap-highlight-color:transparent}
+    .verify-btn:active{opacity:.8}
+    .pending-count-badge{background:var(--a);color:#fff;border-radius:10px;font-size:11px;font-weight:700;padding:2px 7px;margin-left:6px}
     .info-card{border-radius:var(--rad);padding:14px 16px;margin-bottom:12px}
 
     /* SYNC INDICATOR */
@@ -336,6 +341,18 @@
       <div class="metrics">
         <div class="metric"><div class="ml">Épargne ce mois</div><div class="mv" id="h-ep">0 €</div><div class="ms" id="h-ep-pct">—</div></div>
         <div class="metric"><div class="ml">Récurrents</div><div class="mv" id="h-rec">0 €</div><div class="ms" id="h-rec-n">—</div></div>
+      </div>
+      <div id="pending-banner" style="display:none;background:var(--al);border-radius:var(--rsm);padding:12px 14px;margin-bottom:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-size:13px;font-weight:600;color:#854F0B;">🏦 Transactions bancaires à vérifier</div>
+            <div style="font-size:12px;color:#854F0B;margin-top:2px;" id="pending-count-text">—</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px;">
+          <button onclick="confirmAllPending()" style="flex:1;padding:8px;background:#854F0B;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;">OK Tout confirmer</button>
+          <button onclick="showPendingTx()" style="flex:1;padding:8px;background:rgba(133,79,11,.15);color:#854F0B;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;">Vérifier une par une</button>
+        </div>
       </div>
       <div class="card" style="background:linear-gradient(135deg,#639922,#8BBF3A);color:white;padding:16px 20px;margin-bottom:12px;cursor:pointer;-webkit-tap-highlight-color:transparent;" onclick="openEpargneDetail()">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;">
@@ -1160,7 +1177,8 @@ async function deleteTx(){
 // -- HOME --
 function calcTotals(){
   let rev=0,dep=0,savIn=0,savOut=0;
-  txForMonth().forEach(t=>{
+  // Only count confirmed transactions in balance
+  txForMonth().filter(t=>t.status!=='pending').forEach(t=>{
     if(t.sav_type==='in'){
       savIn+=t.amount;
     }else if(t.sav_type==='out'){
@@ -1170,7 +1188,6 @@ function calcTotals(){
       else dep+=t.amount;
     }
   });
-  // Balance: normal ops + savings movements (sav_in reduces, sav_out increases)
   const bal=(rev+savOut)-(dep+savIn);
   return{rev,dep,savIn,savOut,bal};
 }
@@ -1210,18 +1227,30 @@ function updateHome(){
     const isSavOut=t.sav_type==='out';
     const ds=new Date(t.date+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
     const autoTag=t.auto?'<span class="auto-tag">🔁</span>':'';
+    const pendingTag=t.status==='pending'?'<span class="pending-tag">🏦 Bancaire</span>':'';
     const displayNeg=t.type==='dep'||isSavIn;
     const savLabel=isSavIn?'<span class="auto-tag">-> Épargne</span>':isSavOut?'<span class="auto-tag"><- Épargne</span>':'';
     const subcat=isSavIn||isSavOut?'Épargne':t.cat;
     const fallbackIcon=isSavIn?'💰':isSavOut?'💸':(t.type==='rev'?'💼':cat.icon);
     const fallbackBg=isSavIn?'#EAF3DE':isSavOut?'#FCEBEB':(t.type==='rev'?'#EAF3DE':(cat.color||'#7F77DD')+'22');
-    d.innerHTML=`<div class="tx-ico" id="ico-${t.id}" style="display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;font-size:18px;flex-shrink:0;background:${fallbackBg};">${fallbackIcon}</div><div class="tx-info"><div class="tx-name">${t.description}${autoTag}${savLabel}</div><div class="tx-date">${subcat} · ${ds}</div></div><div class="tx-amt ${displayNeg?'neg':'pos'}">${displayNeg?'-':'+'}${fmt(t.amount)}</div>`;
+    d.innerHTML=`<div class="tx-ico" id="ico-${t.id}" style="display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;font-size:18px;flex-shrink:0;background:${fallbackBg};">${fallbackIcon}</div><div class="tx-info"><div class="tx-name">${t.description}${autoTag}${savLabel}${pendingTag}</div><div class="tx-date">${subcat} · ${ds}</div></div><div class="tx-amt ${displayNeg?'neg':'pos'}">${displayNeg?'-':'+'}${fmt(t.amount)}</div>`;
     // Apply brand logo after element is in DOM
     requestAnimationFrame(()=>{
       const ico=document.getElementById('ico-'+t.id);
       if(ico&&!isSavIn&&!isSavOut)renderBrandIcon(ico,t.description,fallbackIcon,fallbackBg,40);
     });
-    d.onclick=()=>openTxEdit(t.id);c.appendChild(d);
+    if(t.status==='pending'){
+      d.classList.add('pending-tx');
+      d.onclick=()=>openTxEdit(t.id);
+      const vBtn=document.createElement('button');
+      vBtn.className='verify-btn';
+      vBtn.textContent='OK';
+      vBtn.onclick=(e)=>{e.stopPropagation();confirmTx(t.id)};
+      d.appendChild(vBtn);
+    }else{
+      d.onclick=()=>openTxEdit(t.id);
+    }
+    c.appendChild(d);
   });
 }
 
@@ -1409,6 +1438,7 @@ function openEpargneDetail(){
       const ds=new Date(t.date+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
       const isDeposit=t.sav_type==='in'||(!t.sav_type&&t.type==='dep');
       const autoTag=t.auto?'<span class="auto-tag">🔁</span>':'';
+    const pendingTag=t.status==='pending'?'<span class="pending-tag">🏦 Bancaire</span>':'';
       d.innerHTML=`
         <div class="tx-ico" style="background:${isDeposit?'#EAF3DE':'#FCEBEB'};">
           ${isDeposit?'💰':'💸'}
@@ -1465,6 +1495,7 @@ function openCatDetail(catName){
       d.style.cursor='pointer';
       const ds=new Date(t.date+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
       const autoTag=t.auto?'<span class="auto-tag">🔁</span>':'';
+    const pendingTag=t.status==='pending'?'<span class="pending-tag">🏦 Bancaire</span>':'';
       d.innerHTML=`<div class="tx-ico" style="background:${(cat.color||'#7F77DD')}22;">${cat.icon}</div>
         <div class="tx-info"><div class="tx-name">${t.description}${autoTag}</div><div class="tx-date">${ds}</div></div>
         <div class="tx-amt neg">-${fmt(t.amount)}</div>`;
@@ -1479,6 +1510,42 @@ function openCatDetail(catName){
   }
 
   document.getElementById('cat-detail-modal').classList.add('open');
+}
+
+// -- PENDING TX --
+async function confirmTx(id){
+  const t=TX.find(t=>t.id==id);
+  if(!t)return;
+  await dbUpdateTx(id,{status:'confirmed'});
+  toast('OK Transaction confirmee');
+  updateAll();
+}
+
+async function confirmAllPending(){
+  const pending=txForMonth().filter(t=>t.status==='pending');
+  for(const t of pending){
+    await dbUpdateTx(t.id,{status:'confirmed'});
+  }
+  toast(`OK ${pending.length} transactions confirmees`);
+  updateAll();
+}
+
+function showPendingTx(){
+  // Scroll to transactions list
+  document.getElementById('home-tx').scrollIntoView({behavior:'smooth'});
+}
+
+function updatePendingBanner(){
+  const pending=TX.filter(t=>t.status==='pending');
+  const banner=document.getElementById('pending-banner');
+  if(!banner)return;
+  if(pending.length>0){
+    banner.style.display='flex';
+    document.getElementById('pending-count-text').textContent=
+      `${pending.length} transaction${pending.length>1?'s':''} importee${pending.length>1?'s':''} de votre banque`;
+  }else{
+    banner.style.display='none';
+  }
 }
 
 // -- PAGE NAV --
@@ -1736,11 +1803,14 @@ async function syncBankTransactions(){
           const cat=guessCatFromBridge(tx);
           await dbAddTx({
             type,amount,
-            description:tx.label||tx.clean_description||'Transaction bancaire',
+            description:tx.clean_description||tx.label||'Transaction bancaire',
             cat,
             date:tx.date||tx.transaction_date,
             auto:false,
-            bridge_id:tx.id
+            bridge_id:String(tx.id),
+            status:'pending',
+            bank_amount:tx.amount,
+            bank_description:tx.clean_description||tx.label
           });
           importedCount++;
         }
@@ -1748,7 +1818,7 @@ async function syncBankTransactions(){
     }
     ssBank('last_sync',new Date().toISOString().split('T')[0]);
     setSyncState('ok');
-    toast(`OK ${importedCount} nouvelle(s) transaction(s) importee(s)`);
+    if(importedCount>0){toast(`OK ${importedCount} transaction(s) importee(s) - Verifiez-les sur l'accueil`);}else{toast('Deja a jour - aucune nouvelle transaction');}
     updateAll();
   }catch(e){
     setSyncState('error');
