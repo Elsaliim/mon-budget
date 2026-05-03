@@ -1668,21 +1668,19 @@ function renderBankAccounts(accounts){
     list.innerHTML='<div class="empty"><div class="ei">🏦</div>Aucun compte trouve.</div>';
     return;
   }
-  // Filter: only enabled accounts, deduplicate by name keeping latest
-  const seen=new Set();
-  const filtered=accounts.filter(acc=>{
-    if(acc.data_access!=='enabled')return false;
-    if(seen.has(acc.name))return false;
-    seen.add(acc.name);
-    return true;
-  });
+  // Filter: only enabled accounts from the latest item_id
+  const maxItemId=Math.max(...accounts.map(a=>a.item_id||0));
+  const filtered=accounts.filter(acc=>acc.item_id===maxItemId&&acc.data_access==='enabled');
   let totalBalance=0;
   filtered.forEach(acc=>{
     totalBalance+=acc.balance||0;
     const d=document.createElement('div');
     d.className='bank-account-item';
-    const typeIcon=acc.type==='checking'?'🏦':acc.type==='card'?'💳':acc.type==='savings'?'💰':acc.type==='loan'?'📋':'🏦';
-    const typeName=acc.type==='checking'?'Compte courant':acc.type==='card'?'Carte':acc.type==='savings'?'Livret':acc.type==='loan'?'Pret':'Compte';
+    const isCard=acc.type==='card'||acc.name.toLowerCase().includes('carte')||acc.name.toLowerCase().includes('visa')||acc.name.toLowerCase().includes('mastercard');
+    const isSavings=acc.type==='savings'||acc.type==='livret';
+    const isLoan=acc.type==='loan';
+    const typeIcon=isCard?'💳':isSavings?'💰':isLoan?'📋':'🏦';
+    const typeName=isCard?'Carte':isSavings?'Livret':isLoan?'Pret':'Compte courant';
     const balance=acc.balance||0;
     d.innerHTML=`<div class="bank-account-icon">${typeIcon}</div>
       <div class="bank-account-info">
