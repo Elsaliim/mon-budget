@@ -1668,13 +1668,21 @@ function renderBankAccounts(accounts){
     list.innerHTML='<div class="empty"><div class="ei">🏦</div>Aucun compte trouve.</div>';
     return;
   }
+  // Filter: only enabled accounts, deduplicate by name keeping latest
+  const seen=new Set();
+  const filtered=accounts.filter(acc=>{
+    if(acc.data_access!=='enabled')return false;
+    if(seen.has(acc.name))return false;
+    seen.add(acc.name);
+    return true;
+  });
   let totalBalance=0;
-  accounts.forEach(acc=>{
+  filtered.forEach(acc=>{
     totalBalance+=acc.balance||0;
     const d=document.createElement('div');
     d.className='bank-account-item';
-    const typeIcon=acc.type===1?'💳':acc.type===2?'💰':acc.type===3?'📈':'🏦';
-    const typeName=acc.type===1?'Compte courant':acc.type===2?'Livret':acc.type===3?'Investissement':'Compte';
+    const typeIcon=acc.type==='checking'?'🏦':acc.type==='card'?'💳':acc.type==='savings'?'💰':acc.type==='loan'?'📋':'🏦';
+    const typeName=acc.type==='checking'?'Compte courant':acc.type==='card'?'Carte':acc.type==='savings'?'Livret':acc.type==='loan'?'Pret':'Compte';
     const balance=acc.balance||0;
     d.innerHTML=`<div class="bank-account-icon">${typeIcon}</div>
       <div class="bank-account-info">
