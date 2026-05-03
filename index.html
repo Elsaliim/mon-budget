@@ -1556,7 +1556,7 @@ async function connectBank(){
     const resp=await fetch(`${SUPA_FUNCTIONS_URL}/bridge-token`,{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':`Bearer ${supaToken}`},
-      body:JSON.stringify({action:'get_connect_url',user_id:currentUser.id})
+      body:JSON.stringify({action:'get_connect_url',user_id:currentUser.id,user_email:currentUser.email})
     });
     const data=await resp.json();
     if(data.url){
