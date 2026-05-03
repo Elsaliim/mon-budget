@@ -1574,19 +1574,28 @@ async function saveBridgeToken(token){
   }catch(e){console.warn('Could not save token to Supabase:',e.message);}
 }
 async function loadBridgeToken(){
-  // First check localStorage (fast)
-  const cached=lsBank('access_token',null);
-  if(cached)return cached;
-  // Then check Supabase (persistent)
   if(!currentUser)return null;
   try{
-    const{data}=await supa.from('profiles').select('bridge_access_token').eq('id',currentUser.id).single();
-    if(data?.bridge_access_token){
-      // Cache locally
-      ssBank('access_token',data.bridge_access_token);
-      return data.bridge_access_token;
+    // Always get fresh token from Bridge via Edge Function
+    const session=await supa.auth.getSession();
+    const resp=await fetch(`${SUPA_FUNCTIONS_URL}/bridge-token`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'get_token',user_id:currentUser.id,user_email:currentUser.email})
+    });
+    const data=await resp.json();
+    if(data.access_token){
+      await saveBridgeToken(data.access_token);
+      return data.access_token;
     }
-  }catch(e){console.warn('Could not load token from Supabase:',e.message);}
+  }catch(e){console.warn('Could not get Bridge token:',e.message);}
+  // Fallback to cached token
+  const cached=lsBank('access_token',null);
+  if(cached)return cached;
+  try{
+    const{data}=await supa.from('profiles').select('bridge_access_token').eq('id',currentUser.id).single();
+    if(data?.bridge_access_token)return data.bridge_access_token;
+  }catch(e){}
   return null;
 }
 
