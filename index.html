@@ -113,7 +113,8 @@
     .gri-label{font-size:11px;opacity:.75}
     .gri-val{font-size:17px;font-weight:600;margin-top:2px}
     .metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
-    .metric{background:var(--s);border-radius:var(--rsm);padding:13px}
+    .metric{background:var(--s);border-radius:var(--rsm);padding:13px;transition:opacity .15s}
+    .metric:active{opacity:.7}
     .ml{font-size:11px;color:var(--t2);margin-bottom:3px}
     .mv{font-size:20px;font-weight:600;color:var(--t)}
     .ms{font-size:11px;color:var(--t2);margin-top:2px}
@@ -330,7 +331,7 @@
     <!-- ACCUEIL -->
     <div class="page active" id="page-home">
       <div id="past-banner" class="past-banner" style="display:none;">📅 Mois passé — consultation uniquement</div>
-      <div class="card grad-card" style="margin-bottom:12px;">
+      <div class="card grad-card" style="margin-bottom:12px;cursor:pointer;" onclick="goPage('add')">
         <div class="gc-label">Solde du mois</div>
         <div class="gc-val" id="h-bal">0 €</div>
         <div class="grad-row">
@@ -339,8 +340,8 @@
         </div>
       </div>
       <div class="metrics">
-        <div class="metric"><div class="ml">Épargne ce mois</div><div class="mv" id="h-ep">0 €</div><div class="ms" id="h-ep-pct">—</div></div>
-        <div class="metric"><div class="ml">Récurrents</div><div class="mv" id="h-rec">0 €</div><div class="ms" id="h-rec-n">—</div></div>
+        <div class="metric" style="cursor:pointer;" onclick="openEpargneDetail()"><div class="ml">Épargne ce mois</div><div class="mv" id="h-ep">0 €</div><div class="ms" id="h-ep-pct">—</div></div>
+        <div class="metric" style="cursor:pointer;" onclick="openMenuPage('charges')"><div class="ml">Récurrents</div><div class="mv" id="h-rec">0 €</div><div class="ms" id="h-rec-n">—</div></div>
       </div>
       <div id="pending-banner" style="display:none;background:var(--al);border-radius:var(--rsm);padding:12px 14px;margin-bottom:12px;">
         <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -727,7 +728,10 @@ function detectBrand(description) {
   const lower = description.toLowerCase();
   for(const brand of BRAND_MAP) {
     for(const key of brand.keys) {
-      if(lower.includes(key.toLowerCase())) return brand;
+      const k = key.toLowerCase();
+      // Use word boundary matching — avoid "boulanger" matching "boulangerie"
+      const regex = new RegExp('(?<![a-z])' + k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![a-z])', 'i');
+      if(regex.test(lower)) return brand;
     }
   }
   return null;
@@ -1780,40 +1784,35 @@ async function syncBankTransactions(){
   btn.textContent='Sync...';btn.disabled=true;
   setSyncState('syncing');
   try{
-    // Reload accounts fresh from API to avoid stale cache
-    await loadBankAccounts();
-    const rawAccounts=lsBank('accounts',null);
-    const accounts=Array.isArray(rawAccounts)?rawAccounts:[];
-    if(!accounts.length){toast('Aucun compte bancaire trouve');btn.textContent='Synchroniser';btn.disabled=false;return;}
     let importedCount=0;
-    for(const acc of accounts){
-      const resp=await fetch(`${SUPA_FUNCTIONS_URL}/bridge-transactions`,{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({access_token:token,account_id:acc.id,since:lsBank('last_sync',null)})
-      });
-      const data=await resp.json();
-      const txs=Array.isArray(data.resources)?data.resources:Array.isArray(data)?data:[];
-      for(const tx of txs){
-        // Check if already imported
-        const exists=TX.some(t=>t.bridge_id===tx.id);
-        if(!exists){
-          const amount=Math.abs(tx.amount);
-          const type=tx.amount<0?'dep':'rev';
-          const cat=guessCatFromBridge(tx);
-          await dbAddTx({
-            type,amount,
-            description:tx.clean_description||tx.label||'Transaction bancaire',
-            cat,
-            date:tx.date||tx.transaction_date,
-            auto:false,
-            bridge_id:String(tx.id),
-            status:'pending',
-            bank_amount:tx.amount,
-            bank_description:tx.clean_description||tx.label
-          });
-          importedCount++;
-        }
+    // Bridge v3 returns all transactions in one call
+    const resp=await fetch(`${SUPA_FUNCTIONS_URL}/bridge-transactions`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({access_token:token,since:lsBank('last_sync',null)})
+    });
+    const data=await resp.json();
+    console.log('Bridge transactions response:',JSON.stringify(data).slice(0,200));
+    const txs=Array.isArray(data.resources)?data.resources:[];
+    for(const tx of txs){
+      const bridgeId=String(tx.id);
+      const exists=TX.some(t=>t.bridge_id===bridgeId);
+      if(!exists){
+        const amount=Math.abs(tx.amount);
+        const type=tx.amount<0?'dep':'rev';
+        const cat=guessCatFromBridge(tx);
+        await dbAddTx({
+          type,amount,
+          description:tx.clean_description||tx.label||'Transaction bancaire',
+          cat,
+          date:tx.date||tx.booking_date,
+          auto:false,
+          bridge_id:bridgeId,
+          status:'pending',
+          bank_amount:tx.amount,
+          bank_description:tx.clean_description||tx.label
+        });
+        importedCount++;
       }
     }
     ssBank('last_sync',new Date().toISOString().split('T')[0]);
