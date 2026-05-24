@@ -1687,6 +1687,10 @@ async function connectBank(){
       // Save access token for later use
       await saveBridgeToken(data.access_token);
       ssBank('return_page','banques');
+      // Mark that we're about to leave for Bridge — so handleBridgeCallback
+      // knows the next page load is a return from Bridge (some PWA contexts
+      // strip query params on return).
+      ssBank('bridge_pending','1');
       // Redirect in same window
       window.location.href=data.url;
     }else{
@@ -1700,25 +1704,35 @@ async function connectBank(){
 }
 
 // Handle return from Bridge auth (called on app load)
+// FIX: only triggers when we ACTUALLY just returned from Bridge.
+// Detection = either Bridge params present in URL (status / error / code / session_id)
+// OR the 'bridge_pending' flag set just before redirecting to Bridge.
+// Otherwise (normal app open), do NOTHING — stay on Accueil.
 async function handleBridgeCallback(){
   const params=new URLSearchParams(window.location.search);
-  const error=params.get('error');
-  const status=params.get('status');
-  
-  // Clean URL
+  const hasBridgeParams=params.has('status')||params.has('error')||params.has('code')||params.has('session_id');
+  const pending=lsBank('bridge_pending',null);
+
+  // Normal app open with no return signal → don't touch the current page
+  if(!hasBridgeParams&&!pending)return;
+
+  // Consume the pending flag (one-shot)
+  if(pending){
+    try{localStorage.removeItem('bank_'+currentUser.id+'_bridge_pending')}catch{}
+  }
+
+  // Clean URL so a refresh doesn't re-trigger the callback
   if(params.toString()){
     window.history.replaceState({},'',window.location.pathname);
   }
 
+  const error=params.get('error');
   if(error){toast('Connexion annulee');return;}
-  
-  // If returning from Bridge Connect (status=success or access_token saved)
-  const savedToken=await loadBridgeToken();
-  if(savedToken&&status!=='error'){
-    toast('Banque connectee ! Chargement des comptes...');
-    openMenuPage('banques');
-    await loadBankAccounts();
-  }
+
+  // We're returning from Bridge — switch to the banques page and load accounts
+  toast('Banque connectee ! Chargement des comptes...');
+  openMenuPage('banques');
+  await loadBankAccounts();
 }
 
 async function loadBankAccounts(){
