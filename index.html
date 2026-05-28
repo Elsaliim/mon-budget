@@ -107,6 +107,9 @@
     /* CARDS */
     .card{background:var(--s);border-radius:var(--rad);padding:16px;margin-bottom:12px}
     .grad-card{background:linear-gradient(135deg,var(--pd),var(--p));color:#fff;padding:24px 20px}
+    .grad-card.compact{padding:16px 18px}
+    .grad-card.compact .gc-val{font-size:28px}
+    .grad-card.compact .grad-row{margin-top:12px;padding-top:10px}
     .gc-label{font-size:12px;opacity:.8;margin-bottom:4px}
     .gc-val{font-size:38px;font-weight:700;letter-spacing:-1px}
     .grad-row{display:flex;justify-content:space-around;margin-top:18px;border-top:1px solid rgba(255,255,255,.2);padding-top:14px}
@@ -118,6 +121,15 @@
     .ml{font-size:11px;color:var(--t2);margin-bottom:3px}
     .mv{font-size:20px;font-weight:600;color:var(--t)}
     .ms{font-size:11px;color:var(--t2);margin-top:2px}
+    /* KPI STRIP (scroll horizontal) */
+    .kpi-strip{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px;margin-bottom:12px;-webkit-overflow-scrolling:touch}
+    .kpi-strip::-webkit-scrollbar{display:none}
+    .kpi-card{flex:0 0 auto;width:138px;background:var(--s);border-radius:var(--rsm);padding:13px 14px;transition:opacity .15s}
+    .kpi-card:active{opacity:.7}
+    .kpi-ico{font-size:16px;margin-bottom:5px}
+    .kpi-label{font-size:11px;color:var(--t2);margin-bottom:3px}
+    .kpi-val{font-size:19px;font-weight:700;color:var(--t);letter-spacing:-.3px}
+    .kpi-sub{font-size:11px;color:var(--t2);margin-top:2px}
 
     /* TX */
     .sec-title{font-size:13px;font-weight:600;color:var(--t2);margin-bottom:12px;text-transform:uppercase;letter-spacing:.05em}
@@ -257,6 +269,25 @@
     .empty{text-align:center;padding:32px 20px;color:var(--t2);font-size:14px}
     .empty .ei{font-size:36px;margin-bottom:10px}
     .past-banner{background:var(--al);color:#854F0B;text-align:center;font-size:12px;font-weight:500;padding:7px 12px;border-radius:var(--rsm);margin-bottom:12px}
+
+    /* COMPARATIF */
+    .cmp-switch{display:flex;align-items:center;justify-content:space-between;background:var(--s);border-radius:var(--rad);padding:8px 10px;margin-bottom:12px}
+    .cmp-switch-mid{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:600;color:var(--t)}
+    .cmp-vs{font-size:11px;font-weight:600;color:var(--t2);background:var(--s2);padding:2px 8px;border-radius:10px}
+    .cmp-row{padding:13px 0;border-bottom:.5px solid var(--b)}
+    .cmp-row:last-child{border-bottom:none}
+    .cmp-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+    .cmp-name{font-size:14px;font-weight:500;color:var(--t);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .cmp-delta{font-size:12px;font-weight:600;padding:2px 8px;border-radius:10px;flex-shrink:0}
+    .cmp-up{background:var(--rl);color:var(--r)}
+    .cmp-down{background:var(--gl);color:var(--g)}
+    .cmp-flat{background:var(--s2);color:var(--t2)}
+    .cmp-bars{display:flex;flex-direction:column;gap:5px}
+    .cmp-barline{display:flex;align-items:center;gap:8px}
+    .cmp-bartag{font-size:10px;color:var(--t2);width:54px;flex-shrink:0}
+    .cmp-bartrack{flex:1;height:8px;background:var(--s2);border-radius:4px;overflow:hidden}
+    .cmp-barfill{height:100%;border-radius:4px;transition:width .5s}
+    .cmp-barval{font-size:12px;font-weight:600;color:var(--t);width:74px;text-align:right;flex-shrink:0}
   </style>
 </head>
 <body>
@@ -307,6 +338,12 @@
       <div><div class="si-label">Revenus récurrents</div><div class="si-sub">Salaire, allocations…</div></div>
     </button>
     <div class="sidemenu-divider"></div>
+    <div class="sidemenu-section">Analyse</div>
+    <button class="sidemenu-item" onclick="openMenuPage('compare')">
+      <div class="si-icon" style="background:#FAEEDA;">📊</div>
+      <div><div class="si-label">Comparatif mensuel</div><div class="si-sub">Dépenses mois vs mois</div></div>
+    </button>
+    <div class="sidemenu-divider"></div>
     <div class="sidemenu-section">Paramètres</div>
     <button class="sidemenu-item" onclick="openMenuPage('categories')">
       <div class="si-icon" style="background:#EEEDFE;">🔖</div>
@@ -339,7 +376,7 @@
     <!-- ACCUEIL -->
     <div class="page active" id="page-home">
       <div id="past-banner" class="past-banner" style="display:none;">📅 Mois passé — consultation uniquement</div>
-      <div class="card grad-card" style="margin-bottom:12px;cursor:pointer;" onclick="goPage('add')">
+      <div class="card grad-card compact" style="margin-bottom:12px;cursor:pointer;" onclick="goPage('add')">
         <div class="gc-label">Solde du mois</div>
         <div class="gc-val" id="h-bal">0 €</div>
         <div class="grad-row">
@@ -347,9 +384,27 @@
           <div><div class="gri-label">Dépenses</div><div class="gri-val" id="h-dep">0 €</div></div>
         </div>
       </div>
-      <div class="metrics">
-        <div class="metric" style="cursor:pointer;" onclick="openEpargneDetail()"><div class="ml">Épargne ce mois</div><div class="mv" id="h-ep">0 €</div><div class="ms" id="h-ep-pct">—</div></div>
-        <div class="metric" style="cursor:pointer;" onclick="openMenuPage('charges')"><div class="ml">Récurrents</div><div class="mv" id="h-rec">0 €</div><div class="ms" id="h-rec-n">—</div></div>
+      <div class="kpi-strip">
+        <div class="kpi-card" style="cursor:pointer;" onclick="openEpargneDetail()">
+          <div class="kpi-ico">💵</div><div class="kpi-label">Cash dispo</div>
+          <div class="kpi-val" id="k-cash">0 €</div><div class="kpi-sub">tous comptes courants</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-ico">💎</div><div class="kpi-label">Patrimoine</div>
+          <div class="kpi-val" id="k-patri">0 €</div><div class="kpi-sub">cash + épargne</div>
+        </div>
+        <div class="kpi-card" style="cursor:pointer;" onclick="openEpargneDetail()">
+          <div class="kpi-ico">📈</div><div class="kpi-label">Taux d'épargne</div>
+          <div class="kpi-val" id="k-savrate">—</div><div class="kpi-sub" id="k-savamt">ce mois</div>
+        </div>
+        <div class="kpi-card" style="cursor:pointer;" onclick="goPage('budget')">
+          <div class="kpi-ico">🎯</div><div class="kpi-label">Reste budget</div>
+          <div class="kpi-val" id="k-budget">0 €</div><div class="kpi-sub" id="k-budget-sub">ce mois</div>
+        </div>
+        <div class="kpi-card" style="cursor:pointer;" onclick="openMenuPage('charges')">
+          <div class="kpi-ico">🔁</div><div class="kpi-label">Récurrents</div>
+          <div class="kpi-val" id="h-rec">0 €</div><div class="kpi-sub" id="h-rec-n">—</div>
+        </div>
       </div>
       <div id="pending-banner" style="display:none;background:var(--al);border-radius:var(--rsm);padding:12px 14px;margin-bottom:12px;">
         <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -488,6 +543,21 @@
     <div class="page" id="page-categories">
       <div class="row-between" style="margin-bottom:14px;"><div style="font-size:18px;font-weight:600;">🔖 Catégories</div><button class="btn btn-p btn-sm" onclick="openCatModal(null)">+ Nouvelle</button></div>
       <div class="card"><div id="cat-list"></div></div>
+    </div>
+
+    <!-- COMPARATIF MENSUEL -->
+    <div class="page" id="page-compare">
+      <div style="font-size:18px;font-weight:600;margin-bottom:4px;">📊 Comparatif mensuel</div>
+      <div style="font-size:13px;color:var(--t2);margin-bottom:14px;">Dépenses par poste, d'un mois à l'autre</div>
+      <div class="cmp-switch">
+        <button class="month-btn" onclick="cmpMove(-1)">‹</button>
+        <div class="cmp-switch-mid"><span id="cmp-label-b">—</span><span class="cmp-vs">vs</span><span id="cmp-label-a">—</span></div>
+        <button class="month-btn" id="cmp-next" onclick="cmpMove(1)">›</button>
+      </div>
+      <div class="card" id="cmp-summary-card" style="padding:16px 18px;">
+        <div id="cmp-summary"></div>
+      </div>
+      <div class="card"><div id="cmp-list"></div></div>
     </div>
   </div>
 
@@ -1158,6 +1228,7 @@ function fmt(n){
 }
 function catOf(name){return CATS.find(c=>c.name===name)||{icon:'💳',color:'#888780',budget:0}}
 function txForMonth(){const k=curKey();return TX.filter(t=>txMonthKey(t)===k)}
+function txForKey(key){return TX.filter(t=>txMonthKey(t)===key)}
 function buildCatSel(id,sel){const s=document.getElementById(id);if(!s)return;const cur=s.value||sel;s.innerHTML='';CATS.forEach(c=>{const o=document.createElement('option');o.value=c.name;o.textContent=`${c.icon} ${c.name}`;if(c.name===cur)o.selected=true;s.appendChild(o)})}
 function maybeClose(id,e){if(e.target.id===id)closeModal(id)}
 function closeModal(id){document.getElementById(id).classList.remove('open')}
@@ -1298,8 +1369,9 @@ function updateHome(){
   const epMonthIn=savIn+epMonthTx.filter(t=>!t.sav_type&&t.type==='dep').reduce((s,t)=>s+t.amount,0);
   const epMonthOut=savOut+epMonthTx.filter(t=>!t.sav_type&&t.type==='rev').reduce((s,t)=>s+t.amount,0);
   const ep=epMonthIn-epMonthOut;
-  document.getElementById('h-ep').textContent=fmt(ep);
-  document.getElementById('h-ep-pct').textContent=rev>0?Math.round((ep/rev)*100)+'% des revenus':'—';
+  // Taux d'épargne du mois
+  document.getElementById('k-savrate').textContent=rev>0?Math.round((ep/rev)*100)+'%':'—';
+  document.getElementById('k-savamt').textContent=fmt(ep)+' ce mois';
   const epTx=TX.filter(t=>t.cat===CAT_SAVINGS);
   // sav_in = virement (adds to savings), sav_out = retrait (removes from savings)
   // Old-style: dep=savings deposit, rev=savings withdrawal (for backward compat)
@@ -1311,6 +1383,20 @@ function updateHome(){
   document.getElementById('h-ep-out').textContent=fmt(epWithdrawals);
   const firstEpDate=epTx.map(t=>t.date).sort()[0];
   document.getElementById('h-ep-since').textContent=firstEpDate?new Date(firstEpDate+'T12:00:00').toLocaleDateString('fr-FR',{month:'short',year:'numeric'}):'—';
+  // KPI : Cash disponible (cumulé, tous mois) = Σ revenus - Σ dépenses (les
+  // virements vers épargne réduisent le cash, les retraits l'augmentent).
+  const cashDispo=TX.filter(t=>t.status!=='pending').reduce((s,t)=>s+(t.type==='rev'?t.amount:-t.amount),0);
+  document.getElementById('k-cash').textContent=fmt(cashDispo);
+  // KPI : Patrimoine = cash disponible + épargne cumulée
+  document.getElementById('k-patri').textContent=fmt(cashDispo+epCumul);
+  // KPI : Reste budget global ce mois (même base que la page Budget)
+  const totalBudget=CATS.reduce((s,c)=>s+(c.budget||0),0);
+  const totalDepMonth=txForMonth().filter(t=>t.type==='dep').reduce((s,t)=>s+t.amount,0);
+  const resteBudget=totalBudget-totalDepMonth;
+  const kb=document.getElementById('k-budget');
+  kb.textContent=(resteBudget<0?'-':'')+fmt(Math.abs(resteBudget));
+  kb.style.color=resteBudget<0?'var(--r)':'var(--t)';
+  document.getElementById('k-budget-sub').textContent=resteBudget<0?'dépassé':'sur '+fmt(totalBudget);
   const rd=RECUR.filter(r=>r.rtype!=='rev').reduce((s,r)=>s+r.amount,0);
   document.getElementById('h-rec').textContent=fmt(rd);
   document.getElementById('h-rec-n').textContent=RECUR.filter(r=>r.rtype!=='rev').length+' charge(s)';
@@ -1574,7 +1660,10 @@ function openCatDetail(catName){
   document.getElementById('cd-sub').textContent=fmt(spent)+' dépensés sur '+fmt(cat.budget);
 
   // Progress bar
-  const overLabel=pct>100?'📛 Dépassé de '+(pct-100)+'%':pct===100?'💸 Budget épuisé':'';
+  const diff=cat.budget-spent; // >0 = reste, =0 épuisé, <0 dépassé
+  const overLabel=diff<0?'📛 Dépassé de '+fmt(-diff):diff===0?'💸 Budget épuisé':'';
+  const midLabel=diff>0?'Restant : '+fmt(diff):diff===0?'Épuisé':'Dépassé : '+fmt(-diff);
+  const midColor=diff<0?'var(--r)':'var(--t2)';
   document.getElementById('cd-progress').innerHTML=`
     <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--t2);margin-bottom:6px;">
       <span>${pct}% utilisé</span>
@@ -1582,7 +1671,7 @@ function openCatDetail(catName){
     </div>
     <div class="bar-bg" style="height:10px;"><div class="bar-fill" style="width:${pctBar}%;background:${bc};"></div></div>
     <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--t2);margin-top:5px;">
-      <span>0 €</span><span>Restant : ${fmt(Math.max(0,cat.budget-spent))}</span><span>${fmt(cat.budget)}</span>
+      <span>0 €</span><span style="color:${midColor};font-weight:${diff<0?'600':'400'};">${midLabel}</span><span>${fmt(cat.budget)}</span>
     </div>`;
 
   // Transactions list
@@ -1670,7 +1759,88 @@ function openMenuPage(name){
   if(name==='charges')updateRecurPage('dep');
   if(name==='revenus')updateRecurPage('rev');
   if(name==='categories')updateCatPage();
+  if(name==='compare'){cmpY=vY;cmpM=vM;updateComparePage();}
   window.scrollTo(0,0);
+}
+
+// -- COMPARATIF MENSUEL --
+// Compare les dépenses par poste entre le mois sélectionné (A) et le précédent (B).
+let cmpY=NOW.getFullYear(),cmpM=NOW.getMonth();
+function cmpMove(d){
+  let m=cmpM+d,y=cmpY;
+  while(m<0){m+=12;y--;}while(m>11){m-=12;y++;}
+  if(monthsFromNow(y,m)>FUTURE_LIMIT)return; // pas au-delà de la limite future
+  cmpM=m;cmpY=y;updateComparePage();
+}
+function updateComparePage(){
+  const aKey=mKey(cmpY,cmpM);
+  let bM=cmpM-1,bY=cmpY;if(bM<0){bM=11;bY--;}
+  const bKey=mKey(bY,bM);
+  const labA=new Date(cmpY,cmpM,1).toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+  const labB=new Date(bY,bM,1).toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+  document.getElementById('cmp-label-a').textContent=labA.charAt(0).toUpperCase()+labA.slice(1);
+  document.getElementById('cmp-label-b').textContent=labB.charAt(0).toUpperCase()+labB.slice(1);
+  document.getElementById('cmp-next').className='month-btn'+(monthsFromNow(cmpY,cmpM)>=FUTURE_LIMIT?' dis':'');
+
+  const aTx=txForKey(aKey).filter(t=>t.type==='dep');
+  const bTx=txForKey(bKey).filter(t=>t.type==='dep');
+  const sumBy=(arr,name)=>arr.filter(t=>t.cat===name).reduce((s,t)=>s+t.amount,0);
+  let rows=CATS.map(c=>({cat:c,a:sumBy(aTx,c.name),b:sumBy(bTx,c.name)}))
+               .filter(r=>r.a>0||r.b>0);
+  rows.sort((x,y)=>y.a-x.a);
+  const maxVal=Math.max(1,...rows.map(r=>Math.max(r.a,r.b)));
+  const totalA=rows.reduce((s,r)=>s+r.a,0);
+  const totalB=rows.reduce((s,r)=>s+r.b,0);
+  const gDelta=totalA-totalB;
+
+  // Résumé global
+  const gPct=totalB>0?Math.round((gDelta/totalB)*100):0;
+  const gCls=gDelta>0?'cmp-up':gDelta<0?'cmp-down':'cmp-flat';
+  const gTxt=gDelta>0?`+${fmt(gDelta)}`:gDelta<0?`-${fmt(-gDelta)}`:'=';
+  document.getElementById('cmp-summary').innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <div style="font-size:11px;color:var(--t2);">Total dépenses</div>
+        <div style="font-size:22px;font-weight:700;color:var(--t);">${fmt(totalA)}</div>
+        <div style="font-size:11px;color:var(--t2);">mois précédent : ${fmt(totalB)}</div>
+      </div>
+      <span class="cmp-delta ${gCls}">${gTxt}${totalB>0&&gDelta!==0?` · ${gPct>0?'+':''}${gPct}%`:''}</span>
+    </div>`;
+
+  // Liste par poste
+  const list=document.getElementById('cmp-list');
+  list.innerHTML='';
+  if(!rows.length){
+    list.innerHTML='<div class="empty"><div class="ei">📊</div>Aucune dépense sur ces deux mois.</div>';
+    return;
+  }
+  rows.forEach(r=>{
+    const d=r.a-r.b;
+    const cls=d>0?'cmp-up':d<0?'cmp-down':'cmp-flat';
+    const pct=r.b>0?Math.round((d/r.b)*100):(r.a>0?100:0);
+    const chip=d>0?`▲ +${fmt(d)}`:d<0?`▼ -${fmt(-d)}`:'=';
+    const col=r.cat.color||'#7F77DD';
+    const row=document.createElement('div');row.className='cmp-row';
+    row.innerHTML=`
+      <div class="cmp-head">
+        <span style="font-size:16px;">${r.cat.icon}</span>
+        <span class="cmp-name">${r.cat.name}</span>
+        <span class="cmp-delta ${cls}">${chip}</span>
+      </div>
+      <div class="cmp-bars">
+        <div class="cmp-barline">
+          <span class="cmp-bartag">Préc.</span>
+          <span class="cmp-bartrack"><span class="cmp-barfill" style="width:${Math.round(r.b/maxVal*100)}%;background:var(--t2);opacity:.45;"></span></span>
+          <span class="cmp-barval" style="color:var(--t2);">${fmt(r.b)}</span>
+        </div>
+        <div class="cmp-barline">
+          <span class="cmp-bartag" style="color:${col};font-weight:600;">Ce mois</span>
+          <span class="cmp-bartrack"><span class="cmp-barfill" style="width:${Math.round(r.a/maxVal*100)}%;background:${col};"></span></span>
+          <span class="cmp-barval">${fmt(r.a)}</span>
+        </div>
+      </div>`;
+    list.appendChild(row);
+  });
 }
 
 // -- DASHBOARD --
