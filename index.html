@@ -151,6 +151,14 @@
     .btn-sm{width:auto;padding:8px 14px;font-size:13px}
     .btn-row{display:flex;gap:10px;margin-top:8px}
 
+    /* TOGGLE SWITCH */
+    .switch{position:relative;display:inline-block;width:46px;height:28px;flex-shrink:0}
+    .switch input{opacity:0;width:0;height:0;position:absolute}
+    .switch .slider{position:absolute;inset:0;background:var(--s2);border:1px solid var(--b);border-radius:28px;transition:.2s;cursor:pointer}
+    .switch .slider::before{content:"";position:absolute;height:22px;width:22px;left:2px;top:2px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+    .switch input:checked + .slider{background:var(--p);border-color:var(--p)}
+    .switch input:checked + .slider::before{transform:translateX(18px)}
+
     /* BUDGET */
     .budget-item{padding:12px 0;border-bottom:.5px solid var(--b)}
     .budget-item:last-child{border-bottom:none}
@@ -540,6 +548,13 @@
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
       <div class="fgroup"><label class="flabel">Date de début</label><input type="month" id="rm-start"/></div>
       <div class="fgroup"><label class="flabel">Date de fin (optionnel)</label><input type="month" id="rm-end"/></div>
+    </div>
+    <div class="fgroup" id="rm-nextmonth-group" style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;background:var(--s2);border-radius:var(--rsm);padding:12px 14px;">
+      <div>
+        <div class="flabel" style="margin-bottom:2px;">Rattacher au mois suivant</div>
+        <div style="font-size:12px;color:var(--t2);line-height:1.4;">Pour un salaire perçu en fin de mois mais à compter sur le mois d'après.</div>
+      </div>
+      <label class="switch"><input type="checkbox" id="rm-nextmonth"><span class="slider"></span></label>
     </div>
     <div class="btn-row"><button class="btn btn-ghost" onclick="closeModal('recur-modal')">Annuler</button><button class="btn btn-p" onclick="saveRecur()">Enregistrer</button></div>
     <button class="btn btn-danger" id="rm-del" style="display:none;margin-top:8px;" onclick="deleteRecur()">🗑 Supprimer</button>
@@ -1035,6 +1050,12 @@ async function dbDeleteCat(name){
 // -- MONTH --
 function mKey(y,m){return `${y}-${String(m+1).padStart(2,'0')}`}
 function curKey(){return mKey(vY,vM)}
+// Mois budgétaire d'une transaction : budget_month si présent (ex salaire
+// rattaché au mois suivant), sinon le mois de sa vraie date.
+function txMonthKey(t){
+  if(t.budget_month)return t.budget_month;
+  return t.date?t.date.slice(0,7):'';
+}
 function isNow(){return vY===NOW.getFullYear()&&vM===NOW.getMonth()}
 function updateMonthUI(){
   const lbl=new Date(vY,vM,1).toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
@@ -1062,16 +1083,27 @@ function renderMP(){
 }
 
 // -- RECUR AUTO-INJECT --
+// Injecte les transactions récurrentes pour le mois affiché (vY, vM).
+// Si r.next_month est vrai (ex : salaire reçu fin de mois mais compté sur
+// le mois suivant), la transaction garde sa vraie date de versement
+// (le mois précédent) mais est rattachée au mois affiché via budget_month.
 async function applyRecur(){
-  const key=curKey();
+  const key=curKey(); // mois budgétaire affiché, ex 2026-02
   for(const r of RECUR){
-    if(!recurActive(r,vY,vM))continue;
-    const already=TX.some(t=>t.recur_id===r.id&&t.date&&t.date.startsWith(key));
-    if(!already){
-      const day=Math.min(r.day,new Date(vY,vM+1,0).getDate());
-      const tx={type:r.rtype||'dep',amount:r.amount,description:r.name,cat:r.cat,date:`${key}-${String(day).padStart(2,'0')}`,recur_id:r.id,auto:true};
-      await dbAddTx(tx);
-    }
+    const shift=!!r.next_month;
+    // Mois de versement réel correspondant à ce mois budgétaire
+    let payY=vY,payM=vM;
+    if(shift){payM=vM-1;if(payM<0){payM=11;payY--;}}
+    const payKey=mKey(payY,payM);
+    if(!recurActive(r,payY,payM))continue;
+    // Dédoublonnage sur le mois budgétaire
+    const already=TX.some(t=>t.recur_id===r.id&&txMonthKey(t)===key);
+    if(already)continue;
+    const dim=new Date(payY,payM+1,0).getDate();
+    const day=Math.min(r.day,dim);
+    const tx={type:r.rtype||'dep',amount:r.amount,description:r.name,cat:r.cat,date:`${payKey}-${String(day).padStart(2,'0')}`,recur_id:r.id,auto:true};
+    if(shift)tx.budget_month=key;
+    await dbAddTx(tx);
   }
 }
 function recurActive(r,y,m){
@@ -1087,7 +1119,7 @@ function fmt(n){
   return rounded.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
 }
 function catOf(name){return CATS.find(c=>c.name===name)||{icon:'💳',color:'#888780',budget:0}}
-function txForMonth(){const k=curKey();return TX.filter(t=>t.date&&t.date.startsWith(k))}
+function txForMonth(){const k=curKey();return TX.filter(t=>txMonthKey(t)===k)}
 function buildCatSel(id,sel){const s=document.getElementById(id);if(!s)return;const cur=s.value||sel;s.innerHTML='';CATS.forEach(c=>{const o=document.createElement('option');o.value=c.name;o.textContent=`${c.icon} ${c.name}`;if(c.name===cur)o.selected=true;s.appendChild(o)})}
 function maybeClose(id,e){if(e.target.id===id)closeModal(id)}
 function closeModal(id){document.getElementById(id).classList.remove('open')}
@@ -1232,12 +1264,14 @@ function updateHome(){
     const ds=new Date(t.date+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
     const autoTag=t.auto?'<span class="auto-tag">🔁</span>':'';
     const pendingTag=t.status==='pending'?'<span class="pending-tag">🏦 Bancaire</span>':'';
+    const isShifted=t.budget_month&&t.date&&t.date.slice(0,7)!==t.budget_month;
+    const shiftTag=isShifted?'<span class="auto-tag">🗓 mois préc.</span>':'';
     const displayNeg=t.type==='dep'||isSavIn;
     const savLabel=isSavIn?'<span class="auto-tag">-> Épargne</span>':isSavOut?'<span class="auto-tag"><- Épargne</span>':'';
     const subcat=isSavIn||isSavOut?'Épargne':t.cat;
     const fallbackIcon=isSavIn?'💰':isSavOut?'💸':(t.type==='rev'?'💼':cat.icon);
     const fallbackBg=isSavIn?'#EAF3DE':isSavOut?'#FCEBEB':(t.type==='rev'?'#EAF3DE':(cat.color||'#7F77DD')+'22');
-    d.innerHTML=`<div class="tx-ico" id="ico-${t.id}" style="display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;font-size:18px;flex-shrink:0;background:${fallbackBg};">${fallbackIcon}</div><div class="tx-info"><div class="tx-name">${t.description}${autoTag}${savLabel}${pendingTag}</div><div class="tx-date">${subcat} · ${ds}</div></div><div class="tx-amt ${displayNeg?'neg':'pos'}">${displayNeg?'-':'+'}${fmt(t.amount)}</div>`;
+    d.innerHTML=`<div class="tx-ico" id="ico-${t.id}" style="display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;font-size:18px;flex-shrink:0;background:${fallbackBg};">${fallbackIcon}</div><div class="tx-info"><div class="tx-name">${t.description}${autoTag}${shiftTag}${savLabel}${pendingTag}</div><div class="tx-date">${subcat} · ${ds}</div></div><div class="tx-amt ${displayNeg?'neg':'pos'}">${displayNeg?'-':'+'}${fmt(t.amount)}</div>`;
     // Apply brand logo after element is in DOM
     requestAnimationFrame(()=>{
       const ico=document.getElementById('ico-'+t.id);
@@ -1330,6 +1364,7 @@ function openRecurModal(id,rtype){
   document.getElementById('rm-day').value=r?r.day:1;
   document.getElementById('rm-start').value=r&&r.start?r.start:mKey(NOW.getFullYear(),NOW.getMonth());
   document.getElementById('rm-end').value=r&&r.end?r.end:'';
+  document.getElementById('rm-nextmonth').checked=!!(r&&r.next_month);
   document.getElementById('rm-ep-picker').style.display='none';
   document.getElementById('rm-del').style.display=r?'block':'none';
   document.getElementById('rm-cat-group').style.display=isDep?'block':'none';
@@ -1346,12 +1381,13 @@ async function saveRecur(){
   const icon=document.getElementById('rm-ep').textContent;
   const isDep=recurModalType==='dep';
   const cat=isDep?document.getElementById('rm-cat').value:'Revenu';
+  const nextMonth=document.getElementById('rm-nextmonth').checked;
   if(!name){toast('(!) Nom manquant');return}
   if(!amount||amount<=0){toast('(!) Montant invalide');return}
   if(editingRecurId){
-    await dbUpdateRecur(editingRecurId,{name,amount,cat,day,icon,start,end,rtype:recurModalType});
+    await dbUpdateRecur(editingRecurId,{name,amount,cat,day,icon,start,end,rtype:recurModalType,next_month:nextMonth});
   }else{
-    await dbAddRecur({name,amount,cat,day,icon,start,end,rtype:recurModalType});
+    await dbAddRecur({name,amount,cat,day,icon,start,end,rtype:recurModalType,next_month:nextMonth});
   }
   closeModal('recur-modal');toast(editingRecurId?'OK Mis à jour':'OK Récurrent ajouté');
   await applyRecur();updateAll();updateRecurPage(recurModalType);
@@ -1580,9 +1616,9 @@ let dashPeriod='month',dashBarChart=null,dashDonut=null,dashLine=null;
 function setPeriod(p,btn){dashPeriod=p;document.querySelectorAll('.period-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');buildDash()}
 function txForPeriod(){
   const now=new Date();
-  if(dashPeriod==='month'){const k=curKey();return TX.filter(t=>t.date&&t.date.startsWith(k))}
+  if(dashPeriod==='month'){const k=curKey();return TX.filter(t=>txMonthKey(t)===k)}
   if(dashPeriod==='week'){const start=new Date(now);start.setDate(now.getDate()-now.getDay()+1);const end=new Date(start);end.setDate(start.getDate()+6);return TX.filter(t=>{if(!t.date)return false;const d=new Date(t.date+'T12:00:00');return d>=start&&d<=end})}
-  if(dashPeriod==='year'){return TX.filter(t=>t.date&&t.date.startsWith(now.getFullYear()+''))}
+  if(dashPeriod==='year'){return TX.filter(t=>txMonthKey(t).startsWith(now.getFullYear()+''))}
   return TX;
 }
 function buildDash(){
@@ -1595,7 +1631,7 @@ function buildDash(){
     <div class="dash-stat"><div class="ds-label">Solde</div><div class="ds-val ${savings>=0?'ds-green':'ds-red'}">${savings>=0?'+':''}${fmt(savings)}</div></div>
     <div class="dash-stat"><div class="ds-label">Transactions</div><div class="ds-val">${txs.length}</div></div>`;
   const labels=[],rData=[],dData=[];
-  for(let i=5;i>=0;i--){let m=vM-i,y=vY;if(m<0){m+=12;y--}const k=mKey(y,m);const lbl=new Date(y,m,1).toLocaleDateString('fr-FR',{month:'short'});labels.push(lbl.charAt(0).toUpperCase()+lbl.slice(1));let r=0,d=0;TX.filter(t=>t.date&&t.date.startsWith(k)).forEach(t=>{if(t.type==='rev')r+=t.amount;else d+=t.amount});rData.push(Math.round(r));dData.push(Math.round(d))}
+  for(let i=5;i>=0;i--){let m=vM-i,y=vY;if(m<0){m+=12;y--}const k=mKey(y,m);const lbl=new Date(y,m,1).toLocaleDateString('fr-FR',{month:'short'});labels.push(lbl.charAt(0).toUpperCase()+lbl.slice(1));let r=0,d=0;TX.filter(t=>txMonthKey(t)===k).forEach(t=>{if(t.type==='rev')r+=t.amount;else d+=t.amount});rData.push(Math.round(r));dData.push(Math.round(d))}
   if(dashBarChart)dashBarChart.destroy();
   dashBarChart=new Chart(document.getElementById('dash-bar'),{type:'bar',data:{labels,datasets:[{label:'Revenus',data:rData,backgroundColor:'#1D9E75',borderRadius:4},{label:'Dépenses',data:dData,backgroundColor:'#7F77DD',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{ticks:{callback:v=>v+'€'}}}}});
   const cats=Object.keys(byCat).filter(c=>byCat[c]>0);const vals=cats.map(c=>Math.round(byCat[c]));const cols=cats.map(c=>catOf(c).color||'#888780');const total=vals.reduce((a,b)=>a+b,0);
@@ -1607,7 +1643,7 @@ function buildDash(){
   }
   if(dashLine)dashLine.destroy();
   const ll=[],lr=[],ld=[];
-  for(let i=5;i>=0;i--){let m=vM-i,y=vY;if(m<0){m+=12;y--}const k=mKey(y,m);const lbl=new Date(y,m,1).toLocaleDateString('fr-FR',{month:'short'});ll.push(lbl.charAt(0).toUpperCase()+lbl.slice(1));let r=0,d=0;TX.filter(t=>t.date&&t.date.startsWith(k)).forEach(t=>{if(t.type==='rev')r+=t.amount;else d+=t.amount});lr.push(Math.round(r));ld.push(Math.round(d))}
+  for(let i=5;i>=0;i--){let m=vM-i,y=vY;if(m<0){m+=12;y--}const k=mKey(y,m);const lbl=new Date(y,m,1).toLocaleDateString('fr-FR',{month:'short'});ll.push(lbl.charAt(0).toUpperCase()+lbl.slice(1));let r=0,d=0;TX.filter(t=>txMonthKey(t)===k).forEach(t=>{if(t.type==='rev')r+=t.amount;else d+=t.amount});lr.push(Math.round(r));ld.push(Math.round(d))}
   dashLine=new Chart(document.getElementById('dash-line'),{type:'line',data:{labels:ll,datasets:[{label:'Revenus',data:lr,borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,.1)',fill:true,tension:.4,pointRadius:2},{label:'Dépenses',data:ld,borderColor:'#7F77DD',backgroundColor:'rgba(127,119,221,.1)',fill:true,tension:.4,pointRadius:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{ticks:{callback:v=>v+'€'}}}}});
 }
 
