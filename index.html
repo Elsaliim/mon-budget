@@ -527,6 +527,13 @@
     <div class="fgroup"><label class="flabel">Montant (€)</label><input type="number" id="tx-amount" min="0" step="0.01" inputmode="decimal"/></div>
     <div class="fgroup" id="tx-cat-group"><label class="flabel">Catégorie</label><select id="tx-cat"></select></div>
     <div class="fgroup"><label class="flabel">Date</label><input type="date" id="tx-date"/></div>
+    <div class="fgroup" id="tx-nextmonth-group" style="display:flex;align-items:center;justify-content:space-between;gap:14px;background:var(--s2);border-radius:var(--rsm);padding:12px 14px;">
+      <div>
+        <div class="flabel" style="margin-bottom:2px;">Affecter au mois suivant</div>
+        <div style="font-size:12px;color:var(--t2);line-height:1.4;">Compte cette opération sur le mois d'après (la date reste inchangée).</div>
+      </div>
+      <label class="switch"><input type="checkbox" id="tx-nextmonth"><span class="slider"></span></label>
+    </div>
     <div class="btn-row"><button class="btn btn-ghost" onclick="closeModal('tx-modal')">Annuler</button><button class="btn btn-p" onclick="saveTxEdit()">Enregistrer</button></div>
     <button class="btn btn-danger" style="margin-top:8px;" onclick="deleteTx()">🗑 Supprimer</button>
   </div>
@@ -549,12 +556,16 @@
       <div class="fgroup"><label class="flabel">Date de début</label><input type="month" id="rm-start"/></div>
       <div class="fgroup"><label class="flabel">Date de fin (optionnel)</label><input type="month" id="rm-end"/></div>
     </div>
-    <div class="fgroup" id="rm-nextmonth-group" style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;background:var(--s2);border-radius:var(--rsm);padding:12px 14px;">
-      <div>
-        <div class="flabel" style="margin-bottom:2px;">Rattacher au mois suivant</div>
-        <div style="font-size:12px;color:var(--t2);line-height:1.4;">Pour un salaire perçu en fin de mois mais à compter sur le mois d'après.</div>
-      </div>
-      <label class="switch"><input type="checkbox" id="rm-nextmonth"><span class="slider"></span></label>
+    <div class="fgroup" id="rm-shift-group">
+      <label class="flabel">Compter ce montant sur</label>
+      <select id="rm-shift">
+        <option value="0">Le mois du versement (par défaut)</option>
+        <option value="1">Le mois suivant</option>
+        <option value="2">Dans 2 mois</option>
+        <option value="3">Dans 3 mois</option>
+        <option value="-1">Le mois précédent</option>
+      </select>
+      <div style="font-size:12px;color:var(--t2);line-height:1.4;margin-top:6px;" id="rm-shift-hint">Ex : salaire perçu le 28 mais à compter sur le mois suivant. La transaction garde sa vraie date de versement.</div>
     </div>
     <div class="btn-row"><button class="btn btn-ghost" onclick="closeModal('recur-modal')">Annuler</button><button class="btn btn-p" onclick="saveRecur()">Enregistrer</button></div>
     <button class="btn btn-danger" id="rm-del" style="display:none;margin-top:8px;" onclick="deleteRecur()">🗑 Supprimer</button>
@@ -1049,6 +1060,12 @@ async function dbDeleteCat(name){
 
 // -- MONTH --
 function mKey(y,m){return `${y}-${String(m+1).padStart(2,'0')}`}
+// Décale une clé de mois 'YYYY-MM' de n mois (n peut être négatif)
+function addMonthsToKey(key,n){
+  const parts=key.split('-');let yy=parseInt(parts[0]);let mm=parseInt(parts[1])-1+n;
+  while(mm<0){mm+=12;yy--;}while(mm>11){mm-=12;yy++;}
+  return mKey(yy,mm);
+}
 function curKey(){return mKey(vY,vM)}
 // Mois budgétaire d'une transaction : budget_month si présent (ex salaire
 // rattaché au mois suivant), sinon le mois de sa vraie date.
@@ -1057,11 +1074,19 @@ function txMonthKey(t){
   return t.date?t.date.slice(0,7):'';
 }
 function isNow(){return vY===NOW.getFullYear()&&vM===NOW.getMonth()}
+// Nombre de mois entre (y,m) et le mois réel courant (négatif = passé, positif = futur)
+function monthsFromNow(y,m){return (y-NOW.getFullYear())*12+(m-NOW.getMonth())}
+const FUTURE_LIMIT=12; // on autorise jusqu'à 12 mois dans le futur
 function updateMonthUI(){
   const lbl=new Date(vY,vM,1).toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
   document.getElementById('month-label').textContent=lbl.charAt(0).toUpperCase()+lbl.slice(1);
-  document.getElementById('next-btn').className='month-btn'+(isNow()?' dis':'');
-  document.getElementById('past-banner').style.display=isNow()?'none':'block';
+  const diff=monthsFromNow(vY,vM);
+  // Le bouton "›" n'est bloqué qu'à la limite future
+  document.getElementById('next-btn').className='month-btn'+(diff>=FUTURE_LIMIT?' dis':'');
+  const banner=document.getElementById('past-banner');
+  if(diff<0){banner.style.display='block';banner.textContent='📅 Mois passé — consultation';}
+  else if(diff>0){banner.style.display='block';banner.textContent='🔮 Mois à venir — prévisionnel';}
+  else{banner.style.display='none';}
 }
 function changeMonth(d){vM+=d;if(vM>11){vM=0;vY++}if(vM<0){vM=11;vY--}updateMonthUI();applyRecur();updateAll();const pg=document.querySelector('.page.active');if(pg&&pg.id==='page-dash')setTimeout(buildDash,80)}
 
@@ -1073,9 +1098,9 @@ function renderMP(){
   document.getElementById('mp-year-label').textContent=mpY;
   const grid=document.getElementById('mp-months');grid.innerHTML='';
   MONTHS_FR.forEach((m,i)=>{
-    const future=mpY>NOW.getFullYear()||(mpY===NOW.getFullYear()&&i>NOW.getMonth());
+    const tooFar=monthsFromNow(mpY,i)>FUTURE_LIMIT; // bloqué seulement au-delà de la limite
     const btn=document.createElement('button');
-    btn.className='mp-month'+(mpY===vY&&i===vM?' active':'')+(future?' dis':'');
+    btn.className='mp-month'+(mpY===vY&&i===vM?' active':'')+(tooFar?' dis':'');
     btn.textContent=m;
     btn.onclick=()=>{vY=mpY;vM=i;updateMonthUI();applyRecur();updateAll();closeModal('mp-modal');const pg=document.querySelector('.page.active');if(pg&&pg.id==='page-dash')setTimeout(buildDash,80)};
     grid.appendChild(btn);
@@ -1083,26 +1108,39 @@ function renderMP(){
 }
 
 // -- RECUR AUTO-INJECT --
-// Injecte les transactions récurrentes pour le mois affiché (vY, vM).
-// Si r.next_month est vrai (ex : salaire reçu fin de mois mais compté sur
-// le mois suivant), la transaction garde sa vraie date de versement
-// (le mois précédent) mais est rattachée au mois affiché via budget_month.
+// Injecte les transactions récurrentes pour le mois affiché (vY, vM), qui est
+// le mois BUDGÉTAIRE. Chaque récurrent a un décalage `month_shift` :
+//   0  -> compté sur le mois de versement (normal)
+//   +1 -> compté le mois suivant (ex salaire perçu fin de mois)
+//   +2 -> dans 2 mois, etc.   -1 -> le mois précédent
+// La transaction garde sa vraie date de versement ; budget_month indique le
+// mois sur lequel elle compte. Compat : ancien champ next_month = décalage +1.
+function recurShift(r){
+  if(r.month_shift!==undefined&&r.month_shift!==null)return parseInt(r.month_shift)||0;
+  return r.next_month?1:0;
+}
+// Liste des mois de versement explicitement supprimés par l'utilisateur pour ce récurrent
+function recurSkips(r){return Array.isArray(r.skipped_months)?r.skipped_months:[]}
 async function applyRecur(){
   const key=curKey(); // mois budgétaire affiché, ex 2026-02
   for(const r of RECUR){
-    const shift=!!r.next_month;
-    // Mois de versement réel correspondant à ce mois budgétaire
-    let payY=vY,payM=vM;
-    if(shift){payM=vM-1;if(payM<0){payM=11;payY--;}}
+    const shift=recurShift(r);
+    // Mois de versement réel = mois budgétaire - décalage
+    let payY=vY,payM=vM-shift;
+    while(payM<0){payM+=12;payY--;}
+    while(payM>11){payM-=12;payY++;}
     const payKey=mKey(payY,payM);
     if(!recurActive(r,payY,payM))continue;
-    // Dédoublonnage sur le mois budgétaire
-    const already=TX.some(t=>t.recur_id===r.id&&txMonthKey(t)===key);
+    // L'utilisateur a supprimé cette occurrence -> ne PAS la ré-injecter
+    if(recurSkips(r).includes(payKey))continue;
+    // Dédoublonnage sur le mois de VERSEMENT (date réelle), robuste même si
+    // budget_month a été modifié manuellement sur une occurrence.
+    const already=TX.some(t=>t.recur_id===r.id&&t.date&&t.date.slice(0,7)===payKey);
     if(already)continue;
     const dim=new Date(payY,payM+1,0).getDate();
     const day=Math.min(r.day,dim);
     const tx={type:r.rtype||'dep',amount:r.amount,description:r.name,cat:r.cat,date:`${payKey}-${String(day).padStart(2,'0')}`,recur_id:r.id,auto:true};
-    if(shift)tx.budget_month=key;
+    if(shift!==0)tx.budget_month=key;
     await dbAddTx(tx);
   }
 }
@@ -1191,6 +1229,9 @@ function openTxEdit(id){
   document.getElementById('tx-amount').value=t.amount;
   document.getElementById('tx-desc').value=t.description;
   document.getElementById('tx-date').value=t.date;
+  // Coché si l'opération est rattachée au mois suivant sa date
+  const nextKey=t.date?addMonthsToKey(t.date.slice(0,7),1):'';
+  document.getElementById('tx-nextmonth').checked=!!(t.budget_month&&t.budget_month===nextKey);
   document.getElementById('tx-cat-group').style.display=t.type==='rev'?'none':'block';
   buildCatSel('tx-cat',t.cat);
   document.getElementById('tx-modal').classList.add('open');
@@ -1202,12 +1243,31 @@ async function saveTxEdit(){
   const date=document.getElementById('tx-date').value;
   const cat=t.type==='rev'?t.cat:document.getElementById('tx-cat').value;
   if(!amount||!desc){toast('(!) Champs manquants');return}
-  await dbUpdateTx(editingTxId,{amount,description:desc,date,cat});
+  // Rattachement au mois suivant : budget_month = mois de la date + 1, sinon null
+  const nextMonth=document.getElementById('tx-nextmonth').checked;
+  const budget_month=nextMonth?addMonthsToKey(date.slice(0,7),1):null;
+  await dbUpdateTx(editingTxId,{amount,description:desc,date,cat,budget_month});
   closeModal('tx-modal');toast('OK Transaction mise à jour');updateAll();
 }
 async function deleteTx(){
+  const t=TX.find(t=>t.id==editingTxId);
+  // Si c'est une occurrence auto d'un récurrent, on mémorise le mois de
+  // versement supprimé pour que applyRecur ne la ré-injecte pas.
+  if(t&&t.auto&&t.recur_id&&t.date){
+    const r=RECUR.find(r=>r.id===t.recur_id);
+    if(r){
+      const payKey=t.date.slice(0,7);
+      const skips=recurSkips(r).slice();
+      if(!skips.includes(payKey)){
+        skips.push(payKey);
+        await dbUpdateRecur(r.id,{skipped_months:skips});
+      }
+    }
+  }
   await dbDeleteTx(editingTxId);
-  closeModal('tx-modal');toast('🗑 Supprimée');updateAll();
+  closeModal('tx-modal');
+  toast(t&&t.auto?'🗑 Occurrence supprimée pour ce mois':'🗑 Supprimée');
+  updateAll();
 }
 
 // -- HOME --
@@ -1265,7 +1325,7 @@ function updateHome(){
     const autoTag=t.auto?'<span class="auto-tag">🔁</span>':'';
     const pendingTag=t.status==='pending'?'<span class="pending-tag">🏦 Bancaire</span>':'';
     const isShifted=t.budget_month&&t.date&&t.date.slice(0,7)!==t.budget_month;
-    const shiftTag=isShifted?'<span class="auto-tag">🗓 mois préc.</span>':'';
+    const shiftTag=isShifted?`<span class="auto-tag">🗓 versé ${new Date(t.date+'T12:00:00').toLocaleDateString('fr-FR',{month:'short',year:'2-digit'})}</span>`:'';
     const displayNeg=t.type==='dep'||isSavIn;
     const savLabel=isSavIn?'<span class="auto-tag">-> Épargne</span>':isSavOut?'<span class="auto-tag"><- Épargne</span>':'';
     const subcat=isSavIn||isSavOut?'Épargne':t.cat;
@@ -1346,7 +1406,9 @@ function updateRecurPage(rtype){
   if(!filtered.length){list.innerHTML=`<div class="empty"><div class="ei">${isDep?'🏠':'💼'}</div>Aucun récurrent.</div>`;return}
   filtered.forEach(r=>{
     const cat=catOf(r.cat);const d=document.createElement('div');d.className='recur-item';
-    d.innerHTML=`<div class="recur-ico" style="background:${(cat.color||'#7F77DD')}22;">${r.icon||'🔁'}</div><div class="recur-info"><div class="recur-name">${r.name}</div><div class="recur-meta">${r.cat} · le ${r.day}${r.start?' · dès '+r.start:''}${r.end?' -> '+r.end:''}</div></div><div class="recur-amt ${isDep?'neg':'pos'}">${isDep?'-':'+'}${fmt(r.amount)}</div><button class="icon-btn" onclick="openRecurModal('${r.id}',null)">🖊</button>`;
+    const sh=recurShift(r);
+    const shiftLabel=sh!==0?` · 🗓 ${sh>0?'compté +'+sh+' mois':'compté '+sh+' mois'}`:'';
+    d.innerHTML=`<div class="recur-ico" style="background:${(cat.color||'#7F77DD')}22;">${r.icon||'🔁'}</div><div class="recur-info"><div class="recur-name">${r.name}</div><div class="recur-meta">${r.cat} · le ${r.day}${r.start?' · dès '+r.start:''}${r.end?' -> '+r.end:''}${shiftLabel}</div></div><div class="recur-amt ${isDep?'neg':'pos'}">${isDep?'-':'+'}${fmt(r.amount)}</div><button class="icon-btn" onclick="openRecurModal('${r.id}',null)">🖊</button>`;
     list.appendChild(d);
   });
 }
@@ -1364,7 +1426,7 @@ function openRecurModal(id,rtype){
   document.getElementById('rm-day').value=r?r.day:1;
   document.getElementById('rm-start').value=r&&r.start?r.start:mKey(NOW.getFullYear(),NOW.getMonth());
   document.getElementById('rm-end').value=r&&r.end?r.end:'';
-  document.getElementById('rm-nextmonth').checked=!!(r&&r.next_month);
+  document.getElementById('rm-shift').value=String(r?recurShift(r):0);
   document.getElementById('rm-ep-picker').style.display='none';
   document.getElementById('rm-del').style.display=r?'block':'none';
   document.getElementById('rm-cat-group').style.display=isDep?'block':'none';
@@ -1381,13 +1443,13 @@ async function saveRecur(){
   const icon=document.getElementById('rm-ep').textContent;
   const isDep=recurModalType==='dep';
   const cat=isDep?document.getElementById('rm-cat').value:'Revenu';
-  const nextMonth=document.getElementById('rm-nextmonth').checked;
+  const monthShift=parseInt(document.getElementById('rm-shift').value)||0;
   if(!name){toast('(!) Nom manquant');return}
   if(!amount||amount<=0){toast('(!) Montant invalide');return}
   if(editingRecurId){
-    await dbUpdateRecur(editingRecurId,{name,amount,cat,day,icon,start,end,rtype:recurModalType,next_month:nextMonth});
+    await dbUpdateRecur(editingRecurId,{name,amount,cat,day,icon,start,end,rtype:recurModalType,month_shift:monthShift,next_month:monthShift===1});
   }else{
-    await dbAddRecur({name,amount,cat,day,icon,start,end,rtype:recurModalType,next_month:nextMonth});
+    await dbAddRecur({name,amount,cat,day,icon,start,end,rtype:recurModalType,month_shift:monthShift,next_month:monthShift===1});
   }
   closeModal('recur-modal');toast(editingRecurId?'OK Mis à jour':'OK Récurrent ajouté');
   await applyRecur();updateAll();updateRecurPage(recurModalType);
