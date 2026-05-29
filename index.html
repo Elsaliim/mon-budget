@@ -290,7 +290,7 @@
     .cmp-flat{background:var(--s2);color:var(--t2)}
     .cmp-bars{display:flex;flex-direction:column;gap:5px}
     .cmp-barline{display:flex;align-items:center;gap:8px}
-    .cmp-bartag{font-size:10px;color:var(--t2);width:54px;flex-shrink:0}
+    .cmp-bartag{font-size:10px;color:var(--t2);width:42px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .cmp-bartrack{flex:1;height:8px;background:var(--s2);border-radius:4px;overflow:hidden}
     .cmp-barfill{height:100%;border-radius:4px;transition:width .5s}
     .cmp-barval{font-size:12px;font-weight:600;color:var(--t);width:74px;text-align:right;flex-shrink:0}
@@ -301,11 +301,12 @@
     .cmpd-col{background:var(--s2);border-radius:var(--rsm);padding:10px}
     .cmpd-colhead{font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .cmpd-coltot{font-size:17px;font-weight:700;color:var(--t);margin-bottom:8px}
-    .cmpd-op{display:flex;justify-content:space-between;gap:6px;padding:7px 0;border-bottom:.5px solid var(--b)}
+    .cmpd-op{padding:8px 0;border-bottom:.5px solid var(--b)}
     .cmpd-op:last-child{border-bottom:none}
-    .cmpd-op-name{font-size:12px;color:var(--t);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .cmpd-op-date{font-size:10px;color:var(--t2);margin-top:1px}
-    .cmpd-op-amt{font-size:12px;font-weight:600;color:var(--r);flex-shrink:0;white-space:nowrap}
+    .cmpd-op-name{font-size:12px;line-height:1.25;color:var(--t);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+    .cmpd-op-foot{display:flex;justify-content:space-between;align-items:baseline;gap:6px;margin-top:2px}
+    .cmpd-op-date{font-size:10px;color:var(--t2)}
+    .cmpd-op-amt{font-size:12px;font-weight:700;color:var(--r);white-space:nowrap}
   </style>
 </head>
 <body>
@@ -1865,6 +1866,9 @@ function updateComparePage(){
   const aKey=mKey(cmpAY,cmpAM),bKey=mKey(cmpBY,cmpBM);
   document.getElementById('cmp-label-a').textContent=cmpLabel(cmpAY,cmpAM);
   document.getElementById('cmp-label-b').textContent=cmpLabel(cmpBY,cmpBM);
+  // Libellés courts (ex « Mai », « Juin ») pour étiqueter les barres
+  const shortA=MONTHS_FR[cmpAM].replace('.','');
+  const shortB=MONTHS_FR[cmpBM].replace('.','');
 
   const aTx=txForKey(aKey).filter(t=>t.type==='dep');
   const bTx=txForKey(bKey).filter(t=>t.type==='dep');
@@ -1913,12 +1917,12 @@ function updateComparePage(){
       </div>
       <div class="cmp-bars">
         <div class="cmp-barline">
-          <span class="cmp-bartag">Réf.</span>
+          <span class="cmp-bartag">${shortB}</span>
           <span class="cmp-bartrack"><span class="cmp-barfill" style="width:${Math.round(r.b/maxVal*100)}%;background:var(--t2);opacity:.45;"></span></span>
           <span class="cmp-barval" style="color:var(--t2);">${fmt(r.b)}</span>
         </div>
         <div class="cmp-barline">
-          <span class="cmp-bartag" style="color:${col};font-weight:600;">Comparé</span>
+          <span class="cmp-bartag" style="color:${col};font-weight:600;">${shortA}</span>
           <span class="cmp-bartrack"><span class="cmp-barfill" style="width:${Math.round(r.a/maxVal*100)}%;background:${col};"></span></span>
           <span class="cmp-barval">${fmt(r.a)}</span>
         </div>
@@ -1949,7 +1953,7 @@ function openCmpDetail(idx){
     if(!ops.length)return '<div style="font-size:12px;color:var(--t2);padding:8px 0;">Aucune opération</div>';
     return ops.map(t=>{
       const ds=t.date?new Date(t.date+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'}):'';
-      return `<div class="cmpd-op"><div style="min-width:0;"><div class="cmpd-op-name">${t.description||'—'}</div><div class="cmpd-op-date">${ds}</div></div><div class="cmpd-op-amt">-${fmt(t.amount)}</div></div>`;
+      return `<div class="cmpd-op"><div class="cmpd-op-name">${t.description||'—'}</div><div class="cmpd-op-foot"><span class="cmpd-op-date">${ds}</span><span class="cmpd-op-amt">-${fmt(t.amount)}</span></div></div>`;
     }).join('');
   };
   document.getElementById('cmpd-list-b').innerHTML=render(bOps);
