@@ -273,6 +273,12 @@
     /* COMPARATIF */
     .cmp-switch{display:flex;align-items:center;justify-content:space-between;background:var(--s);border-radius:var(--rad);padding:8px 10px;margin-bottom:12px}
     .cmp-switch-mid{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:600;color:var(--t)}
+    .cmp-pick{display:flex;align-items:stretch;gap:8px;margin-bottom:12px}
+    .cmp-pick-btn{flex:1;display:flex;flex-direction:column;gap:2px;background:var(--s);border:1px solid var(--b);border-radius:var(--rad);padding:10px 12px;cursor:pointer;text-align:left;-webkit-tap-highlight-color:transparent}
+    .cmp-pick-btn:active{background:var(--s2)}
+    .cmp-pick-label{font-size:10px;color:var(--t2);text-transform:uppercase;letter-spacing:.05em}
+    .cmp-pick-val{font-size:15px;font-weight:600;color:var(--t)}
+    .cmp-pick .cmp-vs{align-self:center}
     .cmp-vs{font-size:11px;font-weight:600;color:var(--t2);background:var(--s2);padding:2px 8px;border-radius:10px}
     .cmp-row{padding:13px 0;border-bottom:.5px solid var(--b)}
     .cmp-row:last-child{border-bottom:none}
@@ -288,6 +294,18 @@
     .cmp-bartrack{flex:1;height:8px;background:var(--s2);border-radius:4px;overflow:hidden}
     .cmp-barfill{height:100%;border-radius:4px;transition:width .5s}
     .cmp-barval{font-size:12px;font-weight:600;color:var(--t);width:74px;text-align:right;flex-shrink:0}
+    .cmp-row{cursor:pointer}
+    .cmp-row:active{opacity:.6}
+    /* CMP DETAIL symétrie */
+    .cmpd-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .cmpd-col{background:var(--s2);border-radius:var(--rsm);padding:10px}
+    .cmpd-colhead{font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .cmpd-coltot{font-size:17px;font-weight:700;color:var(--t);margin-bottom:8px}
+    .cmpd-op{display:flex;justify-content:space-between;gap:6px;padding:7px 0;border-bottom:.5px solid var(--b)}
+    .cmpd-op:last-child{border-bottom:none}
+    .cmpd-op-name{font-size:12px;color:var(--t);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .cmpd-op-date{font-size:10px;color:var(--t2);margin-top:1px}
+    .cmpd-op-amt{font-size:12px;font-weight:600;color:var(--r);flex-shrink:0;white-space:nowrap}
   </style>
 </head>
 <body>
@@ -548,16 +566,49 @@
     <!-- COMPARATIF MENSUEL -->
     <div class="page" id="page-compare">
       <div style="font-size:18px;font-weight:600;margin-bottom:4px;">📊 Comparatif mensuel</div>
-      <div style="font-size:13px;color:var(--t2);margin-bottom:14px;">Dépenses par poste, d'un mois à l'autre</div>
-      <div class="cmp-switch">
-        <button class="month-btn" onclick="cmpMove(-1)">‹</button>
-        <div class="cmp-switch-mid"><span id="cmp-label-b">—</span><span class="cmp-vs">vs</span><span id="cmp-label-a">—</span></div>
-        <button class="month-btn" id="cmp-next" onclick="cmpMove(1)">›</button>
+      <div style="font-size:13px;color:var(--t2);margin-bottom:14px;">Dépenses par poste, entre deux périodes</div>
+      <div class="cmp-pick">
+        <button class="cmp-pick-btn" onclick="openCmpPicker('b')"><span class="cmp-pick-label">Référence</span><span class="cmp-pick-val" id="cmp-label-b">—</span></button>
+        <span class="cmp-vs">vs</span>
+        <button class="cmp-pick-btn" onclick="openCmpPicker('a')"><span class="cmp-pick-label">Comparé</span><span class="cmp-pick-val" id="cmp-label-a">—</span></button>
       </div>
       <div class="card" id="cmp-summary-card" style="padding:16px 18px;">
         <div id="cmp-summary"></div>
       </div>
       <div class="card"><div id="cmp-list"></div></div>
+    </div>
+  </div>
+
+  <!-- CMP MONTH PICKER -->
+  <div class="modal-ov" id="cmp-picker" onclick="maybeClose('cmp-picker',event)">
+    <div class="modal-box">
+      <div class="modal-title" id="cmp-picker-title">Choisir une période</div>
+      <div class="mp-year-nav"><button onclick="cmpPickYear(-1)">‹</button><span id="cmp-picker-year">2026</span><button onclick="cmpPickYear(1)">›</button></div>
+      <div class="month-picker-grid" id="cmp-picker-months"></div>
+      <div class="btn-row"><button class="btn btn-ghost" onclick="closeModal('cmp-picker')">Fermer</button></div>
+    </div>
+  </div>
+
+  <!-- CMP DETAIL (symétrie des opérations) -->
+  <div class="modal-ov" id="cmp-detail" onclick="maybeClose('cmp-detail',event)">
+    <div class="modal-box">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+        <div id="cmpd-icon" style="width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;"></div>
+        <div><div class="modal-title" id="cmpd-title" style="margin-bottom:0;"></div><div style="font-size:13px;color:var(--t2);" id="cmpd-sub"></div></div>
+      </div>
+      <div class="cmpd-grid">
+        <div class="cmpd-col">
+          <div class="cmpd-colhead" id="cmpd-head-b">—</div>
+          <div class="cmpd-coltot" id="cmpd-tot-b">0 €</div>
+          <div id="cmpd-list-b"></div>
+        </div>
+        <div class="cmpd-col">
+          <div class="cmpd-colhead" id="cmpd-head-a">—</div>
+          <div class="cmpd-coltot" id="cmpd-tot-a">0 €</div>
+          <div id="cmpd-list-a"></div>
+        </div>
+      </div>
+      <div class="btn-row" style="margin-top:16px;"><button class="btn btn-ghost" onclick="closeModal('cmp-detail')">Fermer</button></div>
     </div>
   </div>
 
@@ -1768,50 +1819,74 @@ function openMenuPage(name){
   if(name==='charges')updateRecurPage('dep');
   if(name==='revenus')updateRecurPage('rev');
   if(name==='categories')updateCatPage();
-  if(name==='compare'){cmpY=vY;cmpM=vM;updateComparePage();}
+  if(name==='compare'){updateComparePage();}
   window.scrollTo(0,0);
 }
 
 // -- COMPARATIF MENSUEL --
-// Compare les dépenses par poste entre le mois sélectionné (A) et le précédent (B).
-let cmpY=NOW.getFullYear(),cmpM=NOW.getMonth();
-function cmpMove(d){
-  let m=cmpM+d,y=cmpY;
-  while(m<0){m+=12;y--;}while(m>11){m-=12;y++;}
-  if(monthsFromNow(y,m)>FUTURE_LIMIT)return; // pas au-delà de la limite future
-  cmpM=m;cmpY=y;updateComparePage();
+// Compare les dépenses par poste entre deux périodes librement choisies.
+// Période A = "Comparé" (par défaut le mois courant), période B = "Référence"
+// (par défaut le mois précédent). Les deux sont indépendantes.
+let cmpAY=NOW.getFullYear(),cmpAM=NOW.getMonth();
+let cmpBY=NOW.getFullYear(),cmpBM=NOW.getMonth()-1;
+(function initCmpDefaults(){if(cmpBM<0){cmpBM=11;cmpBY--;}})();
+let cmpRows=[]; // mémorisé pour le clic sur un poste
+
+function cmpLabel(y,m){const l=new Date(y,m,1).toLocaleDateString('fr-FR',{month:'long',year:'numeric'});return l.charAt(0).toUpperCase()+l.slice(1);}
+
+// --- Picker de période (réutilise le style month-picker) ---
+let cmpPickTarget='a',cmpPickY=NOW.getFullYear();
+function openCmpPicker(which){
+  cmpPickTarget=which;
+  cmpPickY=which==='a'?cmpAY:cmpBY;
+  document.getElementById('cmp-picker-title').textContent=which==='a'?'Période comparée':'Période de référence';
+  renderCmpPicker();
+  document.getElementById('cmp-picker').classList.add('open');
 }
+function cmpPickYear(d){cmpPickY+=d;renderCmpPicker();}
+function renderCmpPicker(){
+  document.getElementById('cmp-picker-year').textContent=cmpPickY;
+  const grid=document.getElementById('cmp-picker-months');grid.innerHTML='';
+  const selY=cmpPickTarget==='a'?cmpAY:cmpBY,selM=cmpPickTarget==='a'?cmpAM:cmpBM;
+  MONTHS_FR.forEach((m,i)=>{
+    const tooFar=monthsFromNow(cmpPickY,i)>FUTURE_LIMIT;
+    const btn=document.createElement('button');
+    btn.className='mp-month'+(cmpPickY===selY&&i===selM?' active':'')+(tooFar?' dis':'');
+    btn.textContent=m;
+    btn.onclick=()=>{
+      if(cmpPickTarget==='a'){cmpAY=cmpPickY;cmpAM=i;}else{cmpBY=cmpPickY;cmpBM=i;}
+      closeModal('cmp-picker');updateComparePage();
+    };
+    grid.appendChild(btn);
+  });
+}
+
 function updateComparePage(){
-  const aKey=mKey(cmpY,cmpM);
-  let bM=cmpM-1,bY=cmpY;if(bM<0){bM=11;bY--;}
-  const bKey=mKey(bY,bM);
-  const labA=new Date(cmpY,cmpM,1).toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
-  const labB=new Date(bY,bM,1).toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
-  document.getElementById('cmp-label-a').textContent=labA.charAt(0).toUpperCase()+labA.slice(1);
-  document.getElementById('cmp-label-b').textContent=labB.charAt(0).toUpperCase()+labB.slice(1);
-  document.getElementById('cmp-next').className='month-btn'+(monthsFromNow(cmpY,cmpM)>=FUTURE_LIMIT?' dis':'');
+  const aKey=mKey(cmpAY,cmpAM),bKey=mKey(cmpBY,cmpBM);
+  document.getElementById('cmp-label-a').textContent=cmpLabel(cmpAY,cmpAM);
+  document.getElementById('cmp-label-b').textContent=cmpLabel(cmpBY,cmpBM);
 
   const aTx=txForKey(aKey).filter(t=>t.type==='dep');
   const bTx=txForKey(bKey).filter(t=>t.type==='dep');
   const sumBy=(arr,name)=>arr.filter(t=>t.cat===name).reduce((s,t)=>s+t.amount,0);
-  let rows=CATS.map(c=>({cat:c,a:sumBy(aTx,c.name),b:sumBy(bTx,c.name)}))
-               .filter(r=>r.a>0||r.b>0);
-  rows.sort((x,y)=>y.a-x.a);
-  const maxVal=Math.max(1,...rows.map(r=>Math.max(r.a,r.b)));
-  const totalA=rows.reduce((s,r)=>s+r.a,0);
-  const totalB=rows.reduce((s,r)=>s+r.b,0);
+  cmpRows=CATS.map(c=>({cat:c,a:sumBy(aTx,c.name),b:sumBy(bTx,c.name)}))
+              .filter(r=>r.a>0||r.b>0);
+  cmpRows.sort((x,y)=>y.a-x.a);
+  const maxVal=Math.max(1,...cmpRows.map(r=>Math.max(r.a,r.b)));
+  const totalA=cmpRows.reduce((s,r)=>s+r.a,0);
+  const totalB=cmpRows.reduce((s,r)=>s+r.b,0);
   const gDelta=totalA-totalB;
 
-  // Résumé global
+  // Résumé global (A par rapport à B)
   const gPct=totalB>0?Math.round((gDelta/totalB)*100):0;
   const gCls=gDelta>0?'cmp-up':gDelta<0?'cmp-down':'cmp-flat';
   const gTxt=gDelta>0?`+${fmt(gDelta)}`:gDelta<0?`-${fmt(-gDelta)}`:'=';
   document.getElementById('cmp-summary').innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;">
       <div>
-        <div style="font-size:11px;color:var(--t2);">Total dépenses</div>
+        <div style="font-size:11px;color:var(--t2);">Total dépenses · ${cmpLabel(cmpAY,cmpAM)}</div>
         <div style="font-size:22px;font-weight:700;color:var(--t);">${fmt(totalA)}</div>
-        <div style="font-size:11px;color:var(--t2);">mois précédent : ${fmt(totalB)}</div>
+        <div style="font-size:11px;color:var(--t2);">référence : ${fmt(totalB)}</div>
       </div>
       <span class="cmp-delta ${gCls}">${gTxt}${totalB>0&&gDelta!==0?` · ${gPct>0?'+':''}${gPct}%`:''}</span>
     </div>`;
@@ -1819,17 +1894,17 @@ function updateComparePage(){
   // Liste par poste
   const list=document.getElementById('cmp-list');
   list.innerHTML='';
-  if(!rows.length){
-    list.innerHTML='<div class="empty"><div class="ei">📊</div>Aucune dépense sur ces deux mois.</div>';
+  if(!cmpRows.length){
+    list.innerHTML='<div class="empty"><div class="ei">📊</div>Aucune dépense sur ces deux périodes.</div>';
     return;
   }
-  rows.forEach(r=>{
+  cmpRows.forEach((r,idx)=>{
     const d=r.a-r.b;
     const cls=d>0?'cmp-up':d<0?'cmp-down':'cmp-flat';
-    const pct=r.b>0?Math.round((d/r.b)*100):(r.a>0?100:0);
     const chip=d>0?`▲ +${fmt(d)}`:d<0?`▼ -${fmt(-d)}`:'=';
     const col=r.cat.color||'#7F77DD';
     const row=document.createElement('div');row.className='cmp-row';
+    row.onclick=()=>openCmpDetail(idx);
     row.innerHTML=`
       <div class="cmp-head">
         <span style="font-size:16px;">${r.cat.icon}</span>
@@ -1838,18 +1913,48 @@ function updateComparePage(){
       </div>
       <div class="cmp-bars">
         <div class="cmp-barline">
-          <span class="cmp-bartag">Préc.</span>
+          <span class="cmp-bartag">Réf.</span>
           <span class="cmp-bartrack"><span class="cmp-barfill" style="width:${Math.round(r.b/maxVal*100)}%;background:var(--t2);opacity:.45;"></span></span>
           <span class="cmp-barval" style="color:var(--t2);">${fmt(r.b)}</span>
         </div>
         <div class="cmp-barline">
-          <span class="cmp-bartag" style="color:${col};font-weight:600;">Ce mois</span>
+          <span class="cmp-bartag" style="color:${col};font-weight:600;">Comparé</span>
           <span class="cmp-bartrack"><span class="cmp-barfill" style="width:${Math.round(r.a/maxVal*100)}%;background:${col};"></span></span>
           <span class="cmp-barval">${fmt(r.a)}</span>
         </div>
       </div>`;
     list.appendChild(row);
   });
+}
+
+// Détail d'un poste : opérations exactes des deux périodes, en symétrie
+function openCmpDetail(idx){
+  const r=cmpRows[idx];if(!r)return;
+  const aKey=mKey(cmpAY,cmpAM),bKey=mKey(cmpBY,cmpBM);
+  const opsOf=key=>txForKey(key).filter(t=>t.type==='dep'&&t.cat===r.cat.name)
+                   .sort((x,y)=>(y.date||'').localeCompare(x.date||''));
+  const aOps=opsOf(aKey),bOps=opsOf(bKey);
+
+  document.getElementById('cmpd-icon').textContent=r.cat.icon;
+  document.getElementById('cmpd-icon').style.background=(r.cat.color||'#7F77DD')+'22';
+  document.getElementById('cmpd-title').textContent=r.cat.name;
+  const d=r.a-r.b;
+  document.getElementById('cmpd-sub').textContent=(d>0?'+':d<0?'−':'')+(d!==0?fmt(Math.abs(d)):'identique')+(d!==0?' d\'écart':'');
+  document.getElementById('cmpd-head-b').textContent=cmpLabel(cmpBY,cmpBM);
+  document.getElementById('cmpd-head-a').textContent=cmpLabel(cmpAY,cmpAM);
+  document.getElementById('cmpd-tot-b').textContent=fmt(r.b);
+  document.getElementById('cmpd-tot-a').textContent=fmt(r.a);
+
+  const render=(ops)=>{
+    if(!ops.length)return '<div style="font-size:12px;color:var(--t2);padding:8px 0;">Aucune opération</div>';
+    return ops.map(t=>{
+      const ds=t.date?new Date(t.date+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'}):'';
+      return `<div class="cmpd-op"><div style="min-width:0;"><div class="cmpd-op-name">${t.description||'—'}</div><div class="cmpd-op-date">${ds}</div></div><div class="cmpd-op-amt">-${fmt(t.amount)}</div></div>`;
+    }).join('');
+  };
+  document.getElementById('cmpd-list-b').innerHTML=render(bOps);
+  document.getElementById('cmpd-list-a').innerHTML=render(aOps);
+  document.getElementById('cmp-detail').classList.add('open');
 }
 
 // -- DASHBOARD --
