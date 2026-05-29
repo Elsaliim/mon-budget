@@ -1372,7 +1372,11 @@ function updateHome(){
   // Taux d'épargne du mois
   document.getElementById('k-savrate').textContent=rev>0?Math.round((ep/rev)*100)+'%':'—';
   document.getElementById('k-savamt').textContent=fmt(ep)+' ce mois';
-  const epTx=TX.filter(t=>t.cat===CAT_SAVINGS);
+  // Tout est borné à la fin du mois AFFICHÉ : on ne compte que les transactions
+  // dont le mois budgétaire est <= au mois courant affiché (curKey).
+  const upto=curKey();
+  const inScope=t=>txMonthKey(t)<=upto;
+  const epTx=TX.filter(t=>t.cat===CAT_SAVINGS&&inScope(t));
   // sav_in = virement (adds to savings), sav_out = retrait (removes from savings)
   // Old-style: dep=savings deposit, rev=savings withdrawal (for backward compat)
   const epDeposits=epTx.filter(t=>t.sav_type==='in'||(!t.sav_type&&t.type==='dep')).reduce((s,t)=>s+t.amount,0);
@@ -1383,12 +1387,17 @@ function updateHome(){
   document.getElementById('h-ep-out').textContent=fmt(epWithdrawals);
   const firstEpDate=epTx.map(t=>t.date).sort()[0];
   document.getElementById('h-ep-since').textContent=firstEpDate?new Date(firstEpDate+'T12:00:00').toLocaleDateString('fr-FR',{month:'short',year:'numeric'}):'—';
-  // KPI : Cash disponible (cumulé, tous mois) = Σ revenus - Σ dépenses (les
-  // virements vers épargne réduisent le cash, les retraits l'augmentent).
-  const cashDispo=TX.filter(t=>t.status!=='pending').reduce((s,t)=>s+(t.type==='rev'?t.amount:-t.amount),0);
+  // Libellé court du mois affiché (ex « à fin juin »)
+  const moLbl=new Date(vY,vM,1).toLocaleDateString('fr-FR',{month:'short'});
+  const endLbl='à fin '+moLbl;
+  // KPI : Cash disponible = Σ revenus - Σ dépenses jusqu'à la fin du mois affiché
+  // (les virements vers épargne réduisent le cash, les retraits l'augmentent).
+  const cashDispo=TX.filter(t=>t.status!=='pending'&&inScope(t)).reduce((s,t)=>s+(t.type==='rev'?t.amount:-t.amount),0);
   document.getElementById('k-cash').textContent=fmt(cashDispo);
-  // KPI : Patrimoine = cash disponible + épargne cumulée
+  document.querySelector('#k-cash').nextElementSibling.textContent=endLbl;
+  // KPI : Patrimoine = cash disponible + épargne cumulée (même borne temporelle)
   document.getElementById('k-patri').textContent=fmt(cashDispo+epCumul);
+  document.querySelector('#k-patri').nextElementSibling.textContent='cash + épargne · '+endLbl;
   // KPI : Reste budget global ce mois (même base que la page Budget)
   const totalBudget=CATS.reduce((s,c)=>s+(c.budget||0),0);
   const totalDepMonth=txForMonth().filter(t=>t.type==='dep').reduce((s,t)=>s+t.amount,0);
