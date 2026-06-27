@@ -346,11 +346,25 @@
     /* === Badge d'environnement (bas du menu) === */
     .env-badge{padding:6px 20px 18px;font-size:11px;color:var(--t2);opacity:.7;text-align:center}
 
-    /* === Ordinateur : application centrée dans un cadre largeur téléphone === */
-    html.env-desktop body{background:var(--surround)}
-    html.env-desktop .topbar{max-width:var(--frame-w);margin-left:auto;margin-right:auto;border-left:1px solid var(--b);border-right:1px solid var(--b)}
-    html.env-desktop .content{max-width:var(--frame-w);margin-left:auto;margin-right:auto;background:var(--bg);min-height:100dvh;border-left:1px solid var(--b);border-right:1px solid var(--b)}
-    html.env-desktop .nav{max-width:var(--frame-w);border-left:1px solid var(--b);border-right:1px solid var(--b)}
+    /* === Ordinateur : mise en page bureau (s'adapte à la largeur de l'écran) === */
+    /* .shell est le conteneur (limité à 430px sur mobile) : on l'élargit sur ordinateur */
+    html.env-desktop .shell{max-width:min(94vw,940px)}
+    html.env-desktop .content{padding-bottom:120px}
+    /* Bandeau KPI : grille qui remplit la largeur au lieu de défiler */
+    html.env-desktop .kpi-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:12px;overflow:visible}
+    /* Accueil en tableau de bord : résumé pleine largeur, puis 2 colonnes */
+    html.env-desktop #page-home{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+    html.env-desktop #page-home>*{margin-bottom:0!important}
+    html.env-desktop #page-home>.grad-card,
+    html.env-desktop #page-home>.kpi-strip,
+    html.env-desktop #page-home>#past-banner,
+    html.env-desktop #page-home>#pending-banner{grid-column:1 / -1}
+    /* Carte résumé plus aérée sur grand écran */
+    html.env-desktop .grad-card.compact{padding:22px 26px}
+    html.env-desktop .grad-card.compact .gc-val{font-size:34px}
+    /* Navigation flottante centrée (pilule) au lieu d'une barre plein écran */
+    html.env-desktop .nav{left:50%;transform:translateX(-50%);bottom:18px;width:auto;max-width:none;padding:8px 12px;gap:4px;border:1px solid var(--b);border-radius:20px;box-shadow:0 16px 36px -12px rgba(0,0,0,.34)}
+    html.env-desktop .nav-btn{padding:6px 18px}
   </style>
 </head>
 <body>
