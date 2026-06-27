@@ -13,7 +13,7 @@
   <link rel="apple-touch-icon" sizes="120x120" href="icon.png"/>
   <link rel="icon" type="image/png" href="icon.png"/>
   <title>Carat</title>
-  <script>(function(){try{var p=localStorage.getItem('carat_theme')||'system';var dark=p==='dark'||(p!=='light'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.setAttribute('data-theme',dark?'dark':'light');}catch(e){}})();</script>
+  <script>(function(){try{var r=document.documentElement;var p=localStorage.getItem('carat_theme')||'system';var dark=p==='dark'||(p!=='light'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);r.setAttribute('data-theme',dark?'dark':'light');var standalone=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;var touch=(window.matchMedia&&matchMedia('(pointer: coarse)').matches)||navigator.maxTouchPoints>0;var mobile=touch&&innerWidth<700;var ua=navigator.userAgent||'';var os=(/iPad|iPhone|iPod/.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1))?'ios':(/Android/.test(ua)?'android':'other');r.classList.add(standalone?'env-installed':'env-browser');r.classList.add(mobile?'env-mobile':'env-desktop');if(os!=='other')r.classList.add('os-'+os);}catch(e){}})();</script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <style>
@@ -29,6 +29,7 @@
       --bg:#F1ECE1;--s:#FCFAF5;--s2:#ECE6D9;
       --t:#2A2A26;--t2:#74726A;--b:rgba(60,48,20,.14);
       --rad:14px;--rsm:8px;
+      --surround:#DED5C4;--frame-w:440px;
     }
     /* Carat — thème sombre */
     :root[data-theme="dark"]{
@@ -40,6 +41,7 @@
       --a:#E0B45E;--al:#2C2415;--aink:#EBC474;
       --bg:#0F130D;--s:#181C15;--s2:#23271E;
       --t:#F1EEE4;--t2:#9D9C8F;--b:rgba(255,255,255,.12);
+      --surround:#070A05;
     }
     /* Sombre : pastilles d'icônes du menu unifiées (les fonds inline restent pour le clair) */
     :root[data-theme="dark"] .si-icon{background:rgba(255,255,255,.06)!important}
@@ -324,6 +326,31 @@
     .cmpd-op-foot{display:flex;justify-content:space-between;align-items:baseline;gap:6px;margin-top:2px}
     .cmpd-op-date{font-size:10px;color:var(--t2)}
     .cmpd-op-amt{font-size:12px;font-weight:700;color:var(--r);white-space:nowrap}
+    /* === Détection environnement : utilitaires d'affichage === */
+    html.env-desktop .mobile-only{display:none!important}
+    html.env-mobile .desktop-only{display:none!important}
+    html.env-installed .browser-only{display:none!important}
+    html.env-browser .installed-only{display:none!important}
+
+    /* === Bannière « Installer l'app » === */
+    .install-banner{display:none;align-items:center;gap:10px;background:linear-gradient(135deg,var(--gold2),var(--gold));color:var(--goldink);border-radius:var(--rad);padding:10px 12px;margin-bottom:14px;box-shadow:0 2px 10px rgba(60,48,20,.12)}
+    .install-banner .ib-icon{font-size:20px;flex-shrink:0}
+    .install-banner .ib-body{flex:1;min-width:0}
+    .install-banner .ib-title{font-weight:700;font-size:14px}
+    .install-banner .ib-text{font-size:12px;opacity:.9;line-height:1.3}
+    .install-banner .ib-text b{font-weight:700}
+    .install-banner .ib-btn{flex-shrink:0;width:auto;background:var(--p);color:#fff;border:none;border-radius:var(--rsm);padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer}
+    .install-banner .ib-btn:active{opacity:.85}
+    .install-banner .ib-close{flex-shrink:0;width:auto;background:transparent;border:none;color:var(--goldink);font-size:15px;cursor:pointer;opacity:.65;padding:4px 2px;line-height:1}
+
+    /* === Badge d'environnement (bas du menu) === */
+    .env-badge{padding:6px 20px 18px;font-size:11px;color:var(--t2);opacity:.7;text-align:center}
+
+    /* === Ordinateur : application centrée dans un cadre largeur téléphone === */
+    html.env-desktop body{background:var(--surround)}
+    html.env-desktop .topbar{max-width:var(--frame-w);margin-left:auto;margin-right:auto;border-left:1px solid var(--b);border-right:1px solid var(--b)}
+    html.env-desktop .content{max-width:var(--frame-w);margin-left:auto;margin-right:auto;background:var(--bg);min-height:100dvh;border-left:1px solid var(--b);border-right:1px solid var(--b)}
+    html.env-desktop .nav{max-width:var(--frame-w);border-left:1px solid var(--b);border-right:1px solid var(--b)}
   </style>
 </head>
 <body>
@@ -425,6 +452,7 @@
     </div>
     <div class="sidemenu-divider"></div>
     <button class="signout-btn" onclick="signOut()">🚪 Se déconnecter</button>
+    <div class="env-badge" id="env-badge"></div>
   </div>
 
   <!-- TOP BAR -->
@@ -441,6 +469,16 @@
   </div>
 
   <div class="content">
+    <!-- BANNIÈRE INSTALLATION (navigateur seulement) -->
+    <div class="install-banner" id="install-banner">
+      <div class="ib-icon">⬇️</div>
+      <div class="ib-body">
+        <div class="ib-title">Installer Carat</div>
+        <div class="ib-text" id="install-text">Accès rapide depuis ton écran d'accueil.</div>
+      </div>
+      <button class="ib-btn" id="install-btn" onclick="doInstall()">Installer</button>
+      <button class="ib-close" id="install-close" onclick="dismissInstall()" aria-label="Fermer">✕</button>
+    </div>
     <!-- ACCUEIL -->
     <div class="page active" id="page-home">
       <div id="past-banner" class="past-banner" style="display:none;">📅 Mois passé — consultation uniquement</div>
@@ -2537,6 +2575,70 @@ function initTheme(){
 initTheme();
 
 // -- START --
+// -- DÉTECTION ENVIRONNEMENT (mobile/ordi · navigateur/installé) --
+var Env={
+  get isInstalled(){return (window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;},
+  get isTouch(){return (window.matchMedia&&matchMedia('(pointer: coarse)').matches)||navigator.maxTouchPoints>0;},
+  get isMobile(){return this.isTouch&&innerWidth<700;},
+  get isDesktop(){return !this.isMobile;},
+  get os(){var ua=navigator.userAgent||'';if(/iPad|iPhone|iPod/.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1))return'ios';if(/Android/.test(ua))return'android';return'other';}
+};
+window.Env=Env;
+function applyEnvClasses(){
+  var r=document.documentElement;
+  r.classList.toggle('env-installed',Env.isInstalled);
+  r.classList.toggle('env-browser',!Env.isInstalled);
+  r.classList.toggle('env-mobile',Env.isMobile);
+  r.classList.toggle('env-desktop',!Env.isMobile);
+  r.classList.toggle('os-ios',Env.os==='ios');
+  r.classList.toggle('os-android',Env.os==='android');
+}
+function setEnvBadge(){
+  var el=document.getElementById('env-badge');if(!el)return;
+  var dev=Env.isMobile?(Env.os==='ios'?'iPhone / iPad':Env.os==='android'?'Android':'Mobile'):'Ordinateur';
+  var mode=Env.isInstalled?'app installée':'navigateur';
+  el.textContent=(Env.isMobile?'📱 ':'🖥️ ')+dev+' · '+mode;
+}
+var deferredPrompt=null;
+function showInstallBanner(){
+  var b=document.getElementById('install-banner');if(!b)return;
+  if(Env.isInstalled){b.style.display='none';return;}
+  try{if(localStorage.getItem('carat_install_dismissed')==='1'){b.style.display='none';return;}}catch(e){}
+  var btn=document.getElementById('install-btn');
+  var txt=document.getElementById('install-text');
+  if(deferredPrompt){
+    if(btn)btn.style.display='';
+    if(txt)txt.textContent='Accès rapide depuis ton écran d\'accueil.';
+    b.style.display='flex';
+  }else if(Env.os==='ios'){
+    if(btn)btn.style.display='none';
+    if(txt)txt.innerHTML='Appuie sur <b>Partager</b>, puis <b>« Sur l\'écran d\'accueil »</b>.';
+    b.style.display='flex';
+  }else{
+    b.style.display='none';
+  }
+}
+async function doInstall(){
+  if(!deferredPrompt)return;
+  deferredPrompt.prompt();
+  try{await deferredPrompt.userChoice;}catch(e){}
+  deferredPrompt=null;
+  var b=document.getElementById('install-banner');if(b)b.style.display='none';
+}
+function dismissInstall(){
+  var b=document.getElementById('install-banner');if(b)b.style.display='none';
+  try{localStorage.setItem('carat_install_dismissed','1');}catch(e){}
+}
+function setupEnv(){
+  applyEnvClasses();
+  setEnvBadge();
+  window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();deferredPrompt=e;showInstallBanner();});
+  window.addEventListener('appinstalled',function(){deferredPrompt=null;applyEnvClasses();setEnvBadge();var b=document.getElementById('install-banner');if(b)b.style.display='none';});
+  var rt;window.addEventListener('resize',function(){clearTimeout(rt);rt=setTimeout(function(){applyEnvClasses();setEnvBadge();},150);});
+  showInstallBanner();
+}
+setupEnv();
+
 init();
 </script>
 </body>
