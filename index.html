@@ -348,7 +348,7 @@
 
     /* === Ordinateur : mise en page bureau (s'adapte à la largeur de l'écran) === */
     /* .shell est le conteneur (limité à 430px sur mobile) : on l'élargit sur ordinateur */
-    html.env-desktop .shell{max-width:min(94vw,940px)}
+    html.env-desktop .shell{max-width:min(94vw,940px);overflow:visible}
     html.env-desktop .content{padding-bottom:120px}
     /* Bandeau KPI : grille qui remplit la largeur au lieu de défiler */
     html.env-desktop .kpi-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:12px;overflow:visible}
