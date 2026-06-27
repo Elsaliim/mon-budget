@@ -339,6 +339,7 @@
   <div class="auth-screen hidden" id="auth-screen">
     <div class="auth-box">
       <div class="auth-logo" style="display:flex;justify-content:center;margin-bottom:14px;"><div style="width:68px;height:68px;border-radius:24%;background:linear-gradient(150deg,#F3E3B6,#D2AC63);box-shadow:0 10px 22px -10px rgba(150,120,60,.55),inset 0 1px 0 rgba(255,255,255,.55);position:relative;overflow:hidden;"><svg viewBox="0 0 200 200" style="position:absolute;inset:0;width:100%;height:100%;"><path d="M100 124 L83 158 H117 Z" fill="#16402F"></path><circle cx="100" cy="88" r="36" fill="none" stroke="#16402F" stroke-width="7"></circle><path d="M115 73 A20 20 0 1 0 115 103" fill="none" stroke="#16402F" stroke-width="6" stroke-linecap="round"></path><path d="M81 84 H117" fill="none" stroke="#16402F" stroke-width="5.5" stroke-linecap="round"></path><path d="M81 94 H113" fill="none" stroke="#16402F" stroke-width="5.5" stroke-linecap="round"></path></svg></div></div>
+      <div id="login-view">
       <div class="auth-title">Carat</div>
       <div class="auth-sub">Vos finances, au juste poids</div>
       <div class="auth-tabs">
@@ -350,6 +351,24 @@
       <div class="fgroup"><label class="auth-label">Mot de passe</label><input type="password" class="auth-input" id="auth-password" placeholder="••••••••" autocomplete="current-password"/></div>
       <div class="fgroup" id="auth-name-group" style="display:none"><label class="auth-label">Prénom</label><input type="text" class="auth-input" id="auth-name" placeholder="Votre prénom"/></div>
       <button class="auth-btn" id="auth-submit-btn" onclick="handleAuth()">Se connecter</button>
+      <div id="auth-forgot-link" style="text-align:center;margin-top:14px;"><button onclick="showResetView()" style="background:none;border:none;color:var(--pa);font-size:13px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent;">Mot de passe oublié ?</button></div>
+      </div>
+      <div id="reset-view" style="display:none;">
+        <div class="auth-title">Mot de passe oublié</div>
+        <div class="auth-sub">Saisis ton email : on t'envoie un lien pour le réinitialiser.</div>
+        <div class="auth-err" id="reset-err"></div>
+        <div class="fgroup"><label class="auth-label">Email</label><input type="email" class="auth-input" id="reset-email" placeholder="votre@email.com" autocomplete="email"/></div>
+        <button class="auth-btn" id="reset-submit-btn" onclick="sendReset()">Envoyer le lien</button>
+        <div style="text-align:center;margin-top:14px;"><button onclick="hideResetView()" style="background:none;border:none;color:var(--t2);font-size:13px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent;">← Retour à la connexion</button></div>
+      </div>
+      <div id="newpass-view" style="display:none;">
+        <div class="auth-title">Nouveau mot de passe</div>
+        <div class="auth-sub">Choisis un nouveau mot de passe pour ton compte.</div>
+        <div class="auth-err" id="newpass-err"></div>
+        <div class="fgroup"><label class="auth-label">Nouveau mot de passe</label><input type="password" class="auth-input" id="newpass-input" placeholder="••••••••" autocomplete="new-password"/></div>
+        <div class="fgroup"><label class="auth-label">Confirmer</label><input type="password" class="auth-input" id="newpass-confirm" placeholder="••••••••" autocomplete="new-password"/></div>
+        <button class="auth-btn" id="newpass-submit-btn" onclick="submitNewPass()">Valider</button>
+      </div>
     </div>
   </div>
 
@@ -995,6 +1014,7 @@ async function handleAuth(){
   const password=document.getElementById('auth-password').value;
   const errEl=document.getElementById('auth-err');
   errEl.classList.remove('show');
+  errEl.style.background='var(--rl)';errEl.style.color='var(--r)';
   if(!email||!password){errEl.textContent='Veuillez remplir tous les champs.';errEl.classList.add('show');return}
   document.getElementById('auth-submit-btn').textContent='…';
   if(authMode==='login'){
@@ -1012,14 +1032,66 @@ async function signOut(){
   await supa.auth.signOut();
   currentUser=null;TX=[];CATS=[];RECUR=[];
   closeMenu();
+  hideResetView();
+  document.getElementById('newpass-view').style.display='none';
   document.getElementById('auth-screen').classList.remove('hidden');
   toast('À bientôt !');
+}
+
+// -- MOT DE PASSE OUBLIÉ / RÉINITIALISATION --
+function authRedirectUrl(){return window.location.origin+window.location.pathname;}
+function showResetView(){
+  document.getElementById('login-view').style.display='none';
+  document.getElementById('newpass-view').style.display='none';
+  document.getElementById('reset-view').style.display='block';
+  document.getElementById('reset-err').classList.remove('show');
+  document.getElementById('reset-email').value=document.getElementById('auth-email').value.trim();
+}
+function hideResetView(){
+  document.getElementById('reset-view').style.display='none';
+  document.getElementById('login-view').style.display='block';
+}
+async function sendReset(){
+  const email=document.getElementById('reset-email').value.trim();
+  const re=document.getElementById('reset-err');
+  re.classList.remove('show');
+  re.style.background='var(--rl)';re.style.color='var(--r)';
+  if(!email){re.textContent='Saisis ton adresse email.';re.classList.add('show');return;}
+  const btn=document.getElementById('reset-submit-btn');btn.textContent='Envoi…';btn.disabled=true;
+  const{error}=await supa.auth.resetPasswordForEmail(email,{redirectTo:authRedirectUrl()});
+  btn.disabled=false;btn.textContent='Envoyer le lien';
+  if(error){re.textContent=error.message;re.classList.add('show');}
+  else{re.style.background='var(--gl)';re.style.color='var(--g)';re.textContent='OK Email envoyé ! Vérifie ta boîte mail (et les spams).';re.classList.add('show');}
+}
+function showNewPassView(){
+  document.getElementById('loading-screen').classList.add('hidden');
+  document.getElementById('auth-screen').classList.remove('hidden');
+  document.getElementById('login-view').style.display='none';
+  document.getElementById('reset-view').style.display='none';
+  document.getElementById('newpass-view').style.display='block';
+}
+async function submitNewPass(){
+  const pass=document.getElementById('newpass-input').value;
+  const conf=document.getElementById('newpass-confirm').value;
+  const ne=document.getElementById('newpass-err');
+  ne.classList.remove('show');
+  ne.style.background='var(--rl)';ne.style.color='var(--r)';
+  if(!pass||pass.length<6){ne.textContent='6 caractères minimum.';ne.classList.add('show');return;}
+  if(pass!==conf){ne.textContent='Les deux mots de passe ne correspondent pas.';ne.classList.add('show');return;}
+  const btn=document.getElementById('newpass-submit-btn');btn.textContent='…';btn.disabled=true;
+  const{error}=await supa.auth.updateUser({password:pass});
+  if(error){ne.textContent=error.message;ne.classList.add('show');btn.disabled=false;btn.textContent='Valider';return;}
+  toast('OK Mot de passe mis à jour');
+  setTimeout(()=>{window.location.href=authRedirectUrl();},1200);
 }
 
 // -- INIT --
 let appReady = false;
 
 async function init(){
+  let recoveryMode=false;
+  // Retour depuis un lien de réinitialisation de mot de passe ?
+  if((window.location.hash||'').includes('type=recovery')){recoveryMode=true;}
   // Timeout safety - if Supabase does not respond in 8s
   const timeout = setTimeout(()=>{
     if(!appReady){
@@ -1031,6 +1103,7 @@ async function init(){
 
   try{
     const{data:{session}}=await supa.auth.getSession();
+    if(recoveryMode){clearTimeout(timeout);showNewPassView();return;}
     if(session){
       currentUser=session.user;
       // Load from local cache first for instant display
@@ -1054,6 +1127,7 @@ async function init(){
   }
 
   supa.auth.onAuthStateChange(async(event,session)=>{
+    if(event==='PASSWORD_RECOVERY'){recoveryMode=true;clearTimeout(timeout);showNewPassView();return;}
     if(event==='SIGNED_IN'&&session&&!appReady){
       currentUser=session.user;
       document.getElementById('auth-screen').classList.add('hidden');
