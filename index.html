@@ -378,11 +378,17 @@
     <div class="sidemenu-header">
       <div style="display:flex;align-items:center;gap:12px;"><div style="width:40px;height:40px;border-radius:26%;background:linear-gradient(150deg,#F3E3B6,#D2AC63);box-shadow:inset 0 1px 0 rgba(255,255,255,.5);position:relative;overflow:hidden;flex-shrink:0;"><svg viewBox="0 0 200 200" style="position:absolute;inset:0;width:100%;height:100%;"><path d="M100 124 L83 158 H117 Z" fill="#16402F"></path><circle cx="100" cy="88" r="36" fill="none" stroke="#16402F" stroke-width="7"></circle><path d="M115 73 A20 20 0 1 0 115 103" fill="none" stroke="#16402F" stroke-width="6" stroke-linecap="round"></path><path d="M81 84 H117" fill="none" stroke="#16402F" stroke-width="5.5" stroke-linecap="round"></path><path d="M81 94 H113" fill="none" stroke="#16402F" stroke-width="5.5" stroke-linecap="round"></path></svg></div><h2>Carat</h2></div>
       <p>Vos finances, au juste poids</p>
-      <div class="sidemenu-user">
+      <div class="sidemenu-user" onclick="openMenuPage('profile')" style="cursor:pointer;">
         <div class="su-avatar" id="sm-avatar">?</div>
         <div class="su-email" id="sm-email">—</div>
       </div>
     </div>
+    <div class="sidemenu-section">Compte</div>
+    <button class="sidemenu-item" onclick="openMenuPage('profile')">
+      <div class="si-icon" style="background:#E4ECE7;">👤</div>
+      <div><div class="si-label">Mon profil</div><div class="si-sub">Infos & mot de passe</div></div>
+    </button>
+    <div class="sidemenu-divider"></div>
     <div class="sidemenu-section">Récurrents</div>
     <button class="sidemenu-item" onclick="openMenuPage('charges')">
       <div class="si-icon" style="background:#F2E3DE;">🏠</div>
@@ -620,6 +626,43 @@
         <div id="cmp-summary"></div>
       </div>
       <div class="card"><div id="cmp-list"></div></div>
+    </div>
+
+    <!-- PROFIL -->
+    <div class="page" id="page-profile">
+      <div style="font-size:18px;font-weight:600;margin-bottom:4px;">👤 Mon profil</div>
+      <div style="font-size:13px;color:var(--t2);margin-bottom:14px;">Tes informations et la sécurité de ton compte</div>
+
+      <div class="card" style="display:flex;align-items:center;gap:14px;">
+        <div class="emoji-preview" id="pf-ep" onclick="toggleEP('pf')" style="width:60px;height:60px;font-size:30px;">🙂</div>
+        <div style="flex:1;min-width:0;">
+          <div id="pf-fullname" style="font-size:16px;font-weight:600;color:var(--t);">—</div>
+          <div id="pf-email" style="font-size:13px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">—</div>
+          <div id="pf-since" style="font-size:12px;color:var(--t2);margin-top:2px;">—</div>
+        </div>
+      </div>
+      <div id="pf-ep-picker" style="display:none;"><div class="card"><div class="flabel">Choisir un avatar</div><div class="emoji-grid" id="pf-eg"></div></div></div>
+
+      <div class="card">
+        <div class="sec-title">Informations</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div class="fgroup" style="margin-bottom:0;"><label class="flabel">Prénom</label><input type="text" id="pf-first" placeholder="Prénom"></div>
+          <div class="fgroup" style="margin-bottom:0;"><label class="flabel">Nom</label><input type="text" id="pf-last" placeholder="Nom"></div>
+        </div>
+        <div class="fgroup" style="margin-top:14px;"><label class="flabel">Téléphone</label><input type="text" id="pf-phone" inputmode="tel" placeholder="06 12 34 56 78"></div>
+        <div class="fgroup"><label class="flabel">Ville</label><input type="text" id="pf-city" placeholder="Ville"></div>
+        <div class="fgroup"><label class="flabel">Date de naissance</label><input type="date" id="pf-birth"></div>
+        <button class="btn btn-p" onclick="saveProfile()">Enregistrer</button>
+      </div>
+
+      <div class="card">
+        <div class="sec-title">Sécurité — mot de passe</div>
+        <div class="auth-err" id="pf-pass-msg"></div>
+        <div class="fgroup"><label class="flabel">Mot de passe actuel</label><input type="password" id="pf-old" autocomplete="current-password" placeholder="••••••••"></div>
+        <div class="fgroup"><label class="flabel">Nouveau mot de passe</label><input type="password" id="pf-new" autocomplete="new-password" placeholder="6 caractères minimum"></div>
+        <div class="fgroup"><label class="flabel">Confirmer le nouveau</label><input type="password" id="pf-new2" autocomplete="new-password" placeholder="••••••••"></div>
+        <button class="btn btn-p" id="pf-pass-btn" onclick="changePassword()">Changer le mot de passe</button>
+      </div>
     </div>
   </div>
 
@@ -1183,7 +1226,7 @@ function showApp(){
   document.getElementById('auth-screen').classList.add('hidden');
   const email=currentUser?.email||'';
   document.getElementById('sm-email').textContent=email;
-  document.getElementById('sm-avatar').textContent=email.charAt(0).toUpperCase();
+  refreshAccountUI();
   document.getElementById('a-date').value=NOW.toISOString().split('T')[0];
   updateMonthUI();
   applyRecur();
@@ -1928,6 +1971,82 @@ function updatePendingBanner(){
   }
 }
 
+// -- PROFIL --
+function fmtMemberSince(iso){
+  if(!iso)return'—';
+  try{return new Date(iso).toLocaleDateString('fr-FR',{month:'long',year:'numeric'});}catch(e){return'—';}
+}
+function refreshAccountUI(){
+  const m=(currentUser&&currentUser.user_metadata)||{};
+  const email=(currentUser&&currentUser.email)||'';
+  const av=document.getElementById('sm-avatar');
+  if(av)av.textContent=m.avatar_emoji||(email?email.charAt(0).toUpperCase():'?');
+  const em=document.getElementById('sm-email');
+  if(em)em.textContent=email||'—';
+}
+function updateProfilePage(){
+  const m=(currentUser&&currentUser.user_metadata)||{};
+  const email=(currentUser&&currentUser.email)||'';
+  const first=m.first_name||m.full_name||'';
+  const last=m.last_name||'';
+  document.getElementById('pf-first').value=first;
+  document.getElementById('pf-last').value=last;
+  document.getElementById('pf-phone').value=m.phone||'';
+  document.getElementById('pf-city').value=m.city||'';
+  document.getElementById('pf-birth').value=m.birthdate||'';
+  document.getElementById('pf-ep').textContent=m.avatar_emoji||'🙂';
+  document.getElementById('pf-email').textContent=email;
+  document.getElementById('pf-fullname').textContent=((first+' '+last).trim())||'Mon profil';
+  document.getElementById('pf-since').textContent='Membre depuis '+fmtMemberSince(currentUser&&currentUser.created_at);
+  document.getElementById('pf-ep-picker').style.display='none';
+  const pm=document.getElementById('pf-pass-msg');pm.classList.remove('show');
+  document.getElementById('pf-old').value='';
+  document.getElementById('pf-new').value='';
+  document.getElementById('pf-new2').value='';
+}
+async function saveProfile(){
+  const m=(currentUser&&currentUser.user_metadata)||{};
+  const first=document.getElementById('pf-first').value.trim();
+  const last=document.getElementById('pf-last').value.trim();
+  const phone=document.getElementById('pf-phone').value.trim();
+  const city=document.getElementById('pf-city').value.trim();
+  const birthdate=document.getElementById('pf-birth').value;
+  const avatar_emoji=document.getElementById('pf-ep').textContent;
+  const full_name=((first+' '+last).trim())||m.full_name||'';
+  setSyncState('syncing');
+  const{error}=await supa.auth.updateUser({data:{first_name:first,last_name:last,phone:phone,city:city,birthdate:birthdate,avatar_emoji:avatar_emoji,full_name:full_name}});
+  if(error){setSyncState('error');toast('(!) '+error.message);return;}
+  try{const{data}=await supa.auth.getUser();if(data&&data.user)currentUser=data.user;}catch(e){}
+  setSyncState('ok');
+  refreshAccountUI();
+  document.getElementById('pf-fullname').textContent=((first+' '+last).trim())||'Mon profil';
+  toast('OK Profil enregistré');
+}
+async function changePassword(){
+  const oldp=document.getElementById('pf-old').value;
+  const newp=document.getElementById('pf-new').value;
+  const new2=document.getElementById('pf-new2').value;
+  const msg=document.getElementById('pf-pass-msg');
+  msg.classList.remove('show');
+  msg.style.background='var(--rl)';msg.style.color='var(--r)';
+  if(!oldp||!newp||!new2){msg.textContent='Remplis tous les champs.';msg.classList.add('show');return;}
+  if(newp.length<6){msg.textContent='Le nouveau mot de passe doit faire au moins 6 caractères.';msg.classList.add('show');return;}
+  if(newp!==new2){msg.textContent='Les deux nouveaux mots de passe ne correspondent pas.';msg.classList.add('show');return;}
+  const btn=document.getElementById('pf-pass-btn');
+  const lbl=btn.textContent;btn.textContent='…';btn.disabled=true;
+  const email=(currentUser&&currentUser.email)||'';
+  const{error:authErr}=await supa.auth.signInWithPassword({email:email,password:oldp});
+  if(authErr){msg.textContent='Mot de passe actuel incorrect.';msg.classList.add('show');btn.disabled=false;btn.textContent=lbl;return;}
+  const{error:upErr}=await supa.auth.updateUser({password:newp});
+  btn.disabled=false;btn.textContent=lbl;
+  if(upErr){msg.textContent=upErr.message;msg.classList.add('show');return;}
+  msg.style.background='var(--gl)';msg.style.color='var(--g)';
+  msg.textContent='Mot de passe mis à jour avec succès.';msg.classList.add('show');
+  document.getElementById('pf-old').value='';
+  document.getElementById('pf-new').value='';
+  document.getElementById('pf-new2').value='';
+}
+
 // -- PAGE NAV --
 function updateAll(){updateHome();updateBudget()}
 function goPage(name){
@@ -1949,6 +2068,7 @@ function openMenuPage(name){
   if(name==='revenus')updateRecurPage('rev');
   if(name==='categories')updateCatPage();
   if(name==='compare'){updateComparePage();}
+  if(name==='profile'){updateProfilePage();}
   window.scrollTo(0,0);
 }
 
