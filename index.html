@@ -181,6 +181,8 @@
     .btn-p{background:var(--p);color:#fff}
     .btn-p:active{opacity:.85}
     .btn-ghost{background:var(--s2);color:var(--t)}
+    .av-btn{width:auto;padding:9px 14px;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+    .pf-avatar{width:64px;height:64px;border-radius:50%;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:32px;flex-shrink:0;border:2px solid var(--b);overflow:hidden;background-size:cover;background-position:center}
     .btn-danger{background:var(--rl);color:var(--r)}
     .btn-sm{width:auto;padding:8px 14px;font-size:13px}
     .btn-row{display:flex;gap:10px;margin-top:8px}
@@ -704,14 +706,23 @@
       <div style="font-size:13px;color:var(--t2);margin-bottom:14px;">Tes informations et la sécurité de ton compte</div>
 
       <div class="card" style="display:flex;align-items:center;gap:14px;">
-        <div class="emoji-preview" id="pf-ep" onclick="toggleEP('pf')" style="width:60px;height:60px;font-size:30px;">🙂</div>
+        <div id="pf-avatar" class="pf-avatar">🙂</div>
         <div style="flex:1;min-width:0;">
           <div id="pf-fullname" style="font-size:16px;font-weight:600;color:var(--t);">—</div>
           <div id="pf-email" style="font-size:13px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">—</div>
           <div id="pf-since" style="font-size:12px;color:var(--t2);margin-top:2px;">—</div>
         </div>
       </div>
-      <div id="pf-ep-picker" style="display:none;"><div class="card"><div class="flabel">Choisir un avatar</div><div class="emoji-grid" id="pf-eg"></div></div></div>
+      <div class="card">
+        <div class="sec-title">Avatar</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <label class="btn btn-ghost av-btn">📷 Choisir une photo<input type="file" id="pf-photo-input" accept="image/*" onchange="onPhotoSelected(this)" style="display:none;"></label>
+          <button class="btn btn-ghost av-btn" onclick="toggleEP('pf')">😊 Emoji</button>
+          <button class="btn btn-ghost av-btn" id="pf-remove-photo" style="display:none;" onclick="removeAvatarPhoto()">🗑️ Retirer la photo</button>
+        </div>
+        <div id="pf-ep-picker" style="display:none;margin-top:10px;"><div class="emoji-grid" id="pf-eg"></div></div>
+        <span id="pf-ep" style="display:none;">🙂</span>
+      </div>
 
       <div class="card">
         <div class="sec-title">Informations</div>
@@ -1297,6 +1308,7 @@ function showApp(){
   const email=currentUser?.email||'';
   document.getElementById('sm-email').textContent=email;
   refreshAccountUI();
+  loadAvatarPhoto();
   document.getElementById('a-date').value=NOW.toISOString().split('T')[0];
   updateMonthUI();
   applyRecur();
@@ -1893,7 +1905,7 @@ async function deleteCat(){
 
 // -- EMOJI --
 function toggleEP(prefix){const p=document.getElementById(`${prefix}-ep-picker`);const show=p.style.display==='none';p.style.display=show?'block':'none';if(show)buildEG(prefix,document.getElementById(`${prefix}-ep`).textContent)}
-function buildEG(prefix,sel){const g=document.getElementById(`${prefix}-eg`);g.innerHTML='';EMOJIS.forEach(em=>{const b=document.createElement('button');b.className='emoji-opt'+(em===sel?' sel':'');b.textContent=em;b.onclick=()=>{document.getElementById(`${prefix}-ep`).textContent=em;g.querySelectorAll('.emoji-opt').forEach(x=>x.classList.toggle('sel',x.textContent===em))};g.appendChild(b)})}
+function buildEG(prefix,sel){const g=document.getElementById(`${prefix}-eg`);g.innerHTML='';EMOJIS.forEach(em=>{const b=document.createElement('button');b.className='emoji-opt'+(em===sel?' sel':'');b.textContent=em;b.onclick=()=>{document.getElementById(`${prefix}-ep`).textContent=em;g.querySelectorAll('.emoji-opt').forEach(x=>x.classList.toggle('sel',x.textContent===em));if(prefix==='pf')pickProfileEmoji(em);};g.appendChild(b)})}
 
 // -- EPARGNE DETAIL --
 function openEpargneDetail(){
@@ -2046,13 +2058,62 @@ function fmtMemberSince(iso){
   if(!iso)return'—';
   try{return new Date(iso).toLocaleDateString('fr-FR',{month:'long',year:'numeric'});}catch(e){return'—';}
 }
+let avatarPhoto=null;
+function setCircle(el,photo,fallbackText){
+  if(!el)return;
+  if(photo){el.textContent='';el.style.backgroundImage='url('+photo+')';el.style.backgroundSize='cover';el.style.backgroundPosition='center';}
+  else{el.style.backgroundImage='none';el.textContent=fallbackText;}
+}
+function applyAvatar(){
+  const m=(currentUser&&currentUser.user_metadata)||{};
+  const email=(currentUser&&currentUser.email)||'';
+  setCircle(document.getElementById('sm-avatar'),avatarPhoto,m.avatar_emoji||(email?email.charAt(0).toUpperCase():'?'));
+  setCircle(document.getElementById('pf-avatar'),avatarPhoto,m.avatar_emoji||'🙂');
+  const rm=document.getElementById('pf-remove-photo');if(rm)rm.style.display=avatarPhoto?'':'none';
+}
+async function loadAvatarPhoto(){
+  try{const{data}=await supa.from('profiles').select('avatar_photo').eq('id',currentUser.id).single();avatarPhoto=(data&&data.avatar_photo)||null;}catch(e){avatarPhoto=null;}
+  applyAvatar();
+}
+function _resizeImg(file,size,cb){
+  const r=new FileReader();
+  r.onload=()=>{const img=new Image();img.onload=()=>{const c=document.createElement('canvas');c.width=size;c.height=size;const ctx=c.getContext('2d');const mn=Math.min(img.width,img.height);ctx.drawImage(img,(img.width-mn)/2,(img.height-mn)/2,mn,mn,0,0,size,size);cb(c.toDataURL('image/jpeg',0.85));};img.onerror=()=>cb(null);img.src=r.result;};
+  r.onerror=()=>cb(null);r.readAsDataURL(file);
+}
+function onPhotoSelected(input){
+  const file=input.files&&input.files[0];
+  if(!file)return;
+  if(!file.type||file.type.indexOf('image/')!==0){toast('(!) Choisis un fichier image');input.value='';return;}
+  setSyncState('syncing');
+  _resizeImg(file,256,async(dataUrl)=>{
+    if(!dataUrl){setSyncState('error');toast('(!) Image illisible');return;}
+    avatarPhoto=dataUrl;applyAvatar();
+    const{error}=await supa.from('profiles').upsert({id:currentUser.id,avatar_photo:dataUrl},{onConflict:'id'});
+    if(error){setSyncState('error');toast('(!) '+error.message);}else{setSyncState('ok');toast('OK Photo de profil mise à jour');}
+  });
+  input.value='';
+}
+async function removeAvatarPhoto(){
+  avatarPhoto=null;applyAvatar();
+  setSyncState('syncing');
+  const{error}=await supa.from('profiles').upsert({id:currentUser.id,avatar_photo:null},{onConflict:'id'});
+  if(error){setSyncState('error');toast('(!) '+error.message);}else{setSyncState('ok');toast('Photo retirée');}
+}
+async function pickProfileEmoji(em){
+  if(avatarPhoto){avatarPhoto=null;try{await supa.from('profiles').upsert({id:currentUser.id,avatar_photo:null},{onConflict:'id'});}catch(e){}}
+  if(currentUser&&currentUser.user_metadata)currentUser.user_metadata.avatar_emoji=em;
+  applyAvatar();
+  setSyncState('syncing');
+  const{error}=await supa.auth.updateUser({data:{avatar_emoji:em}});
+  if(error){setSyncState('error');toast('(!) '+error.message);}else{setSyncState('ok');}
+}
 function refreshAccountUI(){
   const m=(currentUser&&currentUser.user_metadata)||{};
   const email=(currentUser&&currentUser.email)||'';
-  const av=document.getElementById('sm-avatar');
-  if(av)av.textContent=m.avatar_emoji||(email?email.charAt(0).toUpperCase():'?');
+  const name=((m.first_name||m.full_name||'')+'').trim();
   const em=document.getElementById('sm-email');
-  if(em)em.textContent=email||'—';
+  if(em)em.textContent=name||email||'—';
+  applyAvatar();
 }
 function updateProfilePage(){
   const m=(currentUser&&currentUser.user_metadata)||{};
@@ -2065,6 +2126,7 @@ function updateProfilePage(){
   document.getElementById('pf-city').value=m.city||'';
   document.getElementById('pf-birth').value=m.birthdate||'';
   document.getElementById('pf-ep').textContent=m.avatar_emoji||'🙂';
+  applyAvatar();
   document.getElementById('pf-email').textContent=email;
   document.getElementById('pf-fullname').textContent=((first+' '+last).trim())||'Mon profil';
   document.getElementById('pf-since').textContent='Membre depuis '+fmtMemberSince(currentUser&&currentUser.created_at);
