@@ -346,28 +346,98 @@
     /* === Badge d'environnement (bas du menu) === */
     .env-badge{padding:6px 20px 18px;font-size:11px;color:var(--t2);opacity:.7;text-align:center}
 
-    /* === Ordinateur : mise en page bureau (s'adapte à la largeur de l'écran) === */
-    /* .shell est le conteneur (limité à 430px sur mobile) : on l'élargit sur ordinateur */
-    html.env-desktop .shell{max-width:min(94vw,940px);overflow:visible}
-    html.env-desktop .content{padding-bottom:120px}
-    /* Bandeau KPI : grille qui remplit la largeur au lieu de défiler */
-    html.env-desktop .kpi-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:12px;overflow:visible}
-    /* Accueil en tableau de bord : résumé pleine largeur, puis 2 colonnes */
+    /* ================= ORDINATEUR : identité bureau (barre latérale fixe) ================= */
+    html.env-desktop body{display:block}
+    html.env-desktop .overlay{display:none!important}     /* pas de menu coulissant : pas d'overlay */
+    html.env-desktop .menu-btn{display:none}              /* hamburger inutile */
+    html.env-desktop .nav{display:none}                   /* nav du bas -> remplacée par la barre latérale */
+    /* Barre latérale TOUJOURS affichée */
+    html.env-desktop .sidemenu{transform:none!important;transition:none;z-index:35;width:282px;border-right:1px solid var(--b);box-shadow:none;background:var(--s)}
+    /* Zone principale à droite de la barre latérale */
+    html.env-desktop .shell{margin-left:282px;max-width:none;width:auto;overflow:visible}
+    html.env-desktop .topbar{width:min(100%,1400px);margin-left:auto;margin-right:auto}
+    html.env-desktop .content{width:min(100%,1400px);margin-left:auto;margin-right:auto;padding-bottom:40px}
+    /* Bandeau KPI en grille (remplit la largeur) */
+    html.env-desktop .kpi-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;overflow:visible}
+    /* Accueil = tableau de bord : résumé pleine largeur, puis 2 colonnes */
     html.env-desktop #page-home{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
     html.env-desktop #page-home>*{margin-bottom:0!important}
     html.env-desktop #page-home>.grad-card,
     html.env-desktop #page-home>.kpi-strip,
     html.env-desktop #page-home>#past-banner,
     html.env-desktop #page-home>#pending-banner{grid-column:1 / -1}
-    /* Carte résumé plus aérée sur grand écran */
     html.env-desktop .grad-card.compact{padding:22px 26px}
     html.env-desktop .grad-card.compact .gc-val{font-size:34px}
-    /* Navigation flottante centrée (pilule) au lieu d'une barre plein écran */
-    html.env-desktop .nav{left:50%;transform:translateX(-50%);bottom:18px;width:auto;max-width:none;padding:8px 12px;gap:4px;border:1px solid var(--b);border-radius:20px;box-shadow:0 16px 36px -12px rgba(0,0,0,.34)}
-    html.env-desktop .nav-btn{padding:6px 18px}
+    /* Boutons de navigation dans la barre latérale */
+    .side-nav-btn{display:flex;align-items:center;gap:12px;width:100%;padding:11px 20px;border:none;background:none;cursor:pointer;color:var(--t);font-size:15px;font-weight:500;text-align:left;-webkit-tap-highlight-color:transparent}
+    .side-nav-btn svg{width:20px;height:20px;flex-shrink:0;stroke:var(--t2)}
+    .side-nav-btn:hover{background:var(--s2)}
+    .side-nav-btn.active{background:var(--pl);color:var(--pa);font-weight:600}
+    .side-nav-btn.active svg{stroke:var(--pa)}
   </style>
 </head>
 <body>
+  <div class="overlay" id="overlay" onclick="closeMenu()"></div>
+  <div class="sidemenu" id="sidemenu">
+    <div class="sidemenu-header">
+      <div style="display:flex;align-items:center;gap:12px;"><div style="width:40px;height:40px;border-radius:26%;background:linear-gradient(150deg,#F3E3B6,#D2AC63);box-shadow:inset 0 1px 0 rgba(255,255,255,.5);position:relative;overflow:hidden;flex-shrink:0;"><svg viewBox="0 0 200 200" style="position:absolute;inset:0;width:100%;height:100%;"><path d="M100 124 L83 158 H117 Z" fill="#16402F"></path><circle cx="100" cy="88" r="36" fill="none" stroke="#16402F" stroke-width="7"></circle><path d="M115 73 A20 20 0 1 0 115 103" fill="none" stroke="#16402F" stroke-width="6" stroke-linecap="round"></path><path d="M81 84 H117" fill="none" stroke="#16402F" stroke-width="5.5" stroke-linecap="round"></path><path d="M81 94 H113" fill="none" stroke="#16402F" stroke-width="5.5" stroke-linecap="round"></path></svg></div><h2>Carat</h2></div>
+      <p>Vos finances, au juste poids</p>
+      <div class="sidemenu-user" onclick="openMenuPage('profile')" style="cursor:pointer;">
+        <div class="su-avatar" id="sm-avatar">?</div>
+        <div class="su-email" id="sm-email">—</div>
+      </div>
+    </div>
+    <div class="sidemenu-section desktop-only">Navigation</div>
+    <button class="side-nav-btn desktop-only active" id="side-nav-home" onclick="goPage('home')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12L12 4l9 8"/><path d="M5 10v9a1 1 0 001 1h4v-4h4v4h4a1 1 0 001-1v-9"/></svg>Accueil</button>
+    <button class="side-nav-btn desktop-only" id="side-nav-add" onclick="goPage('add')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>Ajouter</button>
+    <button class="side-nav-btn desktop-only" id="side-nav-budget" onclick="goPage('budget')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Budget</button>
+    <button class="side-nav-btn desktop-only" id="side-nav-dash" onclick="goPage('dash')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Dashboard</button>
+    <div class="sidemenu-divider desktop-only"></div>
+    <div class="sidemenu-section">Compte</div>
+    <button class="sidemenu-item" onclick="openMenuPage('profile')">
+      <div class="si-icon" style="background:#E4ECE7;">👤</div>
+      <div><div class="si-label">Mon profil</div><div class="si-sub">Infos & mot de passe</div></div>
+    </button>
+    <div class="sidemenu-divider"></div>
+    <div class="sidemenu-section">Récurrents</div>
+    <button class="sidemenu-item" onclick="openMenuPage('charges')">
+      <div class="si-icon" style="background:#F2E3DE;">🏠</div>
+      <div><div class="si-label">Charges récurrentes</div><div class="si-sub">Loyer, assurances…</div></div>
+    </button>
+    <button class="sidemenu-item" onclick="openMenuPage('revenus')">
+      <div class="si-icon" style="background:#E5F0E9;">💼</div>
+      <div><div class="si-label">Revenus récurrents</div><div class="si-sub">Salaire, allocations…</div></div>
+    </button>
+    <div class="sidemenu-divider"></div>
+    <div class="sidemenu-section">Analyse</div>
+    <button class="sidemenu-item" onclick="openMenuPage('compare')">
+      <div class="si-icon" style="background:#F7EEDB;">📊</div>
+      <div><div class="si-label">Comparatif mensuel</div><div class="si-sub">Dépenses mois vs mois</div></div>
+    </button>
+    <div class="sidemenu-divider"></div>
+    <div class="sidemenu-section">Paramètres</div>
+    <button class="sidemenu-item" onclick="openMenuPage('categories')">
+      <div class="si-icon" style="background:#EAE0C9;">🔖</div>
+      <div><div class="si-label">Catégories</div><div class="si-sub">Ajouter, modifier…</div></div>
+    </button>
+    <div class="sidemenu-divider"></div>
+    <div class="sidemenu-section">Banques</div>
+    <button class="sidemenu-item" onclick="openMenuPage('banques')">
+      <div class="si-icon" style="background:#E4ECE7;">🏦</div>
+      <div><div class="si-label">Mes banques</div><div class="si-sub">Connecter et synchroniser</div></div>
+    </button>
+    <div class="sidemenu-divider"></div>
+    <div class="sidemenu-section">Apparence</div>
+    <div class="theme-seg" id="theme-seg">
+      <button class="theme-opt" data-theme-val="light" onclick="setTheme('light')">☀️ Clair</button>
+      <button class="theme-opt" data-theme-val="dark" onclick="setTheme('dark')">🌙 Sombre</button>
+      <button class="theme-opt" data-theme-val="system" onclick="setTheme('system')">⚙️ Auto</button>
+    </div>
+    <div class="sidemenu-divider"></div>
+    <button class="signout-btn" onclick="signOut()">🚪 Se déconnecter</button>
+    <div class="env-badge" id="env-badge"></div>
+  </div>
+
 <div class="shell" id="shell">
 
   <!-- LOADING -->
@@ -414,61 +484,6 @@
   </div>
 
   <!-- SIDE MENU OVERLAY -->
-  <div class="overlay" id="overlay" onclick="closeMenu()"></div>
-  <div class="sidemenu" id="sidemenu">
-    <div class="sidemenu-header">
-      <div style="display:flex;align-items:center;gap:12px;"><div style="width:40px;height:40px;border-radius:26%;background:linear-gradient(150deg,#F3E3B6,#D2AC63);box-shadow:inset 0 1px 0 rgba(255,255,255,.5);position:relative;overflow:hidden;flex-shrink:0;"><svg viewBox="0 0 200 200" style="position:absolute;inset:0;width:100%;height:100%;"><path d="M100 124 L83 158 H117 Z" fill="#16402F"></path><circle cx="100" cy="88" r="36" fill="none" stroke="#16402F" stroke-width="7"></circle><path d="M115 73 A20 20 0 1 0 115 103" fill="none" stroke="#16402F" stroke-width="6" stroke-linecap="round"></path><path d="M81 84 H117" fill="none" stroke="#16402F" stroke-width="5.5" stroke-linecap="round"></path><path d="M81 94 H113" fill="none" stroke="#16402F" stroke-width="5.5" stroke-linecap="round"></path></svg></div><h2>Carat</h2></div>
-      <p>Vos finances, au juste poids</p>
-      <div class="sidemenu-user" onclick="openMenuPage('profile')" style="cursor:pointer;">
-        <div class="su-avatar" id="sm-avatar">?</div>
-        <div class="su-email" id="sm-email">—</div>
-      </div>
-    </div>
-    <div class="sidemenu-section">Compte</div>
-    <button class="sidemenu-item" onclick="openMenuPage('profile')">
-      <div class="si-icon" style="background:#E4ECE7;">👤</div>
-      <div><div class="si-label">Mon profil</div><div class="si-sub">Infos & mot de passe</div></div>
-    </button>
-    <div class="sidemenu-divider"></div>
-    <div class="sidemenu-section">Récurrents</div>
-    <button class="sidemenu-item" onclick="openMenuPage('charges')">
-      <div class="si-icon" style="background:#F2E3DE;">🏠</div>
-      <div><div class="si-label">Charges récurrentes</div><div class="si-sub">Loyer, assurances…</div></div>
-    </button>
-    <button class="sidemenu-item" onclick="openMenuPage('revenus')">
-      <div class="si-icon" style="background:#E5F0E9;">💼</div>
-      <div><div class="si-label">Revenus récurrents</div><div class="si-sub">Salaire, allocations…</div></div>
-    </button>
-    <div class="sidemenu-divider"></div>
-    <div class="sidemenu-section">Analyse</div>
-    <button class="sidemenu-item" onclick="openMenuPage('compare')">
-      <div class="si-icon" style="background:#F7EEDB;">📊</div>
-      <div><div class="si-label">Comparatif mensuel</div><div class="si-sub">Dépenses mois vs mois</div></div>
-    </button>
-    <div class="sidemenu-divider"></div>
-    <div class="sidemenu-section">Paramètres</div>
-    <button class="sidemenu-item" onclick="openMenuPage('categories')">
-      <div class="si-icon" style="background:#EAE0C9;">🔖</div>
-      <div><div class="si-label">Catégories</div><div class="si-sub">Ajouter, modifier…</div></div>
-    </button>
-    <div class="sidemenu-divider"></div>
-    <div class="sidemenu-section">Banques</div>
-    <button class="sidemenu-item" onclick="openMenuPage('banques')">
-      <div class="si-icon" style="background:#E4ECE7;">🏦</div>
-      <div><div class="si-label">Mes banques</div><div class="si-sub">Connecter et synchroniser</div></div>
-    </button>
-    <div class="sidemenu-divider"></div>
-    <div class="sidemenu-section">Apparence</div>
-    <div class="theme-seg" id="theme-seg">
-      <button class="theme-opt" data-theme-val="light" onclick="setTheme('light')">☀️ Clair</button>
-      <button class="theme-opt" data-theme-val="dark" onclick="setTheme('dark')">🌙 Sombre</button>
-      <button class="theme-opt" data-theme-val="system" onclick="setTheme('system')">⚙️ Auto</button>
-    </div>
-    <div class="sidemenu-divider"></div>
-    <button class="signout-btn" onclick="signOut()">🚪 Se déconnecter</button>
-    <div class="env-badge" id="env-badge"></div>
-  </div>
-
   <!-- TOP BAR -->
   <div class="topbar">
     <div class="topbar-left">
@@ -2106,12 +2121,15 @@ function goPage(name){
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('page-'+name).classList.add('active');
   document.getElementById('nav-'+name)?.classList.add('active');
+  document.querySelectorAll('.side-nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('side-nav-'+name)?.classList.add('active');
   if(name==='dash')setTimeout(buildDash,80);
   if(name==='budget')updateBudget();
   window.scrollTo(0,0);
 }
 function openMenuPage(name){
   closeMenu();
+  document.querySelectorAll('.side-nav-btn').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('page-'+name).classList.add('active');
