@@ -80,7 +80,10 @@
     .topbar-left{display:flex;align-items:center;gap:10px}
     .menu-btn{background:none;border:none;cursor:pointer;padding:4px;border-radius:8px;-webkit-tap-highlight-color:transparent;display:flex;flex-direction:column;gap:4px}
     .menu-btn span{display:block;width:20px;height:2px;background:var(--t);border-radius:2px}
-    .app-title{font-size:17px;font-weight:600;color:var(--t)}
+    .app-title{font-size:17px;font-weight:600;color:var(--t);display:inline-flex;align-items:center}
+    .brand-logo{width:30px;height:30px;border-radius:26%;background:linear-gradient(150deg,#F3E3B6,#D2AC63);position:relative;overflow:hidden;flex-shrink:0;display:inline-flex}
+    .brand-logo svg{width:100%;height:100%}
+    html.env-desktop .app-title .brand-text{display:none}
     .month-nav{display:flex;align-items:center;gap:2px}
     .month-btn{background:none;border:none;color:var(--pa);font-size:20px;cursor:pointer;padding:4px 8px;border-radius:var(--rsm);-webkit-tap-highlight-color:transparent;line-height:1;font-weight:700}
     .month-btn:active{background:var(--pl)}
@@ -360,7 +363,7 @@
     /* Bandeau KPI en grille (remplit la largeur) */
     html.env-desktop .kpi-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;overflow:visible}
     /* Accueil = tableau de bord : résumé pleine largeur, puis 2 colonnes */
-    html.env-desktop #page-home{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+    html.env-desktop #page-home.active{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
     html.env-desktop #page-home>*{margin-bottom:0!important}
     html.env-desktop #page-home>.grad-card,
     html.env-desktop #page-home>.kpi-strip,
@@ -380,7 +383,7 @@
   <div class="overlay" id="overlay" onclick="closeMenu()"></div>
   <div class="sidemenu" id="sidemenu">
     <div class="sidemenu-header">
-      <div style="display:flex;align-items:center;gap:12px;"><div style="width:40px;height:40px;border-radius:26%;background:linear-gradient(150deg,#F3E3B6,#D2AC63);box-shadow:inset 0 1px 0 rgba(255,255,255,.5);position:relative;overflow:hidden;flex-shrink:0;"><svg viewBox="0 0 200 200" style="position:absolute;inset:0;width:100%;height:100%;"><path d="M100 124 L83 158 H117 Z" fill="#16402F"></path><circle cx="100" cy="88" r="36" fill="none" stroke="#16402F" stroke-width="7"></circle><path d="M115 73 A20 20 0 1 0 115 103" fill="none" stroke="#16402F" stroke-width="6" stroke-linecap="round"></path><path d="M81 84 H117" fill="none" stroke="#16402F" stroke-width="5.5" stroke-linecap="round"></path><path d="M81 94 H113" fill="none" stroke="#16402F" stroke-width="5.5" stroke-linecap="round"></path></svg></div><h2>Carat</h2></div>
+      <div onclick="goPage('home');closeMenu()" style="display:flex;align-items:center;gap:12px;cursor:pointer;"><div style="width:40px;height:40px;border-radius:26%;background:linear-gradient(150deg,#F3E3B6,#D2AC63);box-shadow:inset 0 1px 0 rgba(255,255,255,.5);position:relative;overflow:hidden;flex-shrink:0;"><svg viewBox="0 0 200 200" style="position:absolute;inset:0;width:100%;height:100%;"><path d="M100 124 L83 158 H117 Z" fill="#16402F"></path><circle cx="100" cy="88" r="36" fill="none" stroke="#16402F" stroke-width="7"></circle><path d="M115 73 A20 20 0 1 0 115 103" fill="none" stroke="#16402F" stroke-width="6" stroke-linecap="round"></path><path d="M81 84 H117" fill="none" stroke="#16402F" stroke-width="5.5" stroke-linecap="round"></path><path d="M81 94 H113" fill="none" stroke="#16402F" stroke-width="5.5" stroke-linecap="round"></path></svg></div><h2>Carat</h2></div>
       <p>Vos finances, au juste poids</p>
       <div class="sidemenu-user" onclick="openMenuPage('profile')" style="cursor:pointer;">
         <div class="su-avatar" id="sm-avatar">?</div>
@@ -488,7 +491,7 @@
   <div class="topbar">
     <div class="topbar-left">
       <button class="menu-btn" onclick="openMenu()"><span></span><span></span><span></span></button>
-      <span class="app-title">Carat <span class="sync-dot" id="sync-dot"></span></span>
+      <span class="app-title" onclick="goPage('home')" style="cursor:pointer;" title="Accueil"><span class="brand-logo desktop-only"><svg viewBox="0 0 200 200"><path d="M100 124 L83 158 H117 Z" fill="#16402F"></path><circle cx="100" cy="88" r="36" fill="none" stroke="#16402F" stroke-width="7"></circle><path d="M115 73 A20 20 0 1 0 115 103" fill="none" stroke="#16402F" stroke-width="6" stroke-linecap="round"></path><path d="M81 84 H117" fill="none" stroke="#16402F" stroke-width="5.5" stroke-linecap="round"></path><path d="M81 94 H113" fill="none" stroke="#16402F" stroke-width="5.5" stroke-linecap="round"></path></svg></span><span class="brand-text">Carat</span> <span class="sync-dot" id="sync-dot"></span></span>
     </div>
     <div class="month-nav">
       <button class="month-btn" onclick="changeMonth(-1)">‹</button>
