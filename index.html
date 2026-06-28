@@ -106,6 +106,7 @@
     .sidemenu-item:active{background:var(--s2)}
     .si-icon{width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:linear-gradient(150deg,#F3E3B6,#D2AC63);box-shadow:inset 0 1px 0 rgba(255,255,255,.45)}
     .ic{display:block}
+    .tic{width:22px;height:22px;flex-shrink:0;display:block}
     .si-icon .ic{width:19px;height:19px}
     .si-label{font-size:15px;color:var(--t);font-weight:500}
     .si-sub{font-size:12px;color:var(--t2);margin-top:1px}
@@ -400,12 +401,6 @@
     <button class="side-nav-btn desktop-only" id="side-nav-budget" onclick="goPage('budget')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Budget</button>
     <button class="side-nav-btn desktop-only" id="side-nav-dash" onclick="goPage('dash')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Dashboard</button>
     <div class="sidemenu-divider desktop-only"></div>
-    <div class="sidemenu-section">Compte</div>
-    <button class="sidemenu-item" onclick="openMenuPage('profile')">
-      <div class="si-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="#16402F" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.2" r="3.6"/><path d="M5.5 19.5a6.5 6.5 0 0 1 13 0"/></svg></div>
-      <div><div class="si-label">Mon profil</div><div class="si-sub">Infos & mot de passe</div></div>
-    </button>
-    <div class="sidemenu-divider"></div>
     <div class="sidemenu-section">Récurrents</div>
     <button class="sidemenu-item" onclick="openMenuPage('charges')">
       <div class="si-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="#16402F" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 11.2 12 4.5l8.5 6.7"/><path d="M5.6 10v9.5h12.8V10"/><path d="M9.8 19.5v-5.2h4.4v5.2"/></svg></div>
@@ -631,7 +626,7 @@
 
     <!-- CHARGES -->
     <div class="page" id="page-charges">
-      <div class="row-between" style="margin-bottom:4px;"><div style="font-size:18px;font-weight:600;">🏠 Charges récurrentes</div><button class="btn btn-p btn-sm" onclick="openRecurModal(null,'dep')">+ Ajouter</button></div>
+      <div class="row-between" style="margin-bottom:4px;"><div style="font-size:18px;font-weight:600;display:flex;align-items:center;gap:7px;"><svg class="tic" viewBox="0 0 24 24" fill="none" stroke="var(--pa)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 11.2 12 4.5l8.5 6.7"/><path d="M5.6 10v9.5h12.8V10"/><path d="M9.8 19.5v-5.2h4.4v5.2"/></svg><span>Charges récurrentes</span></div><button class="btn btn-p btn-sm" onclick="openRecurModal(null,'dep')">+ Ajouter</button></div>
       <div style="font-size:13px;color:var(--t2);margin-bottom:14px;">Ajoutées automatiquement chaque mois</div>
       <div class="info-card" style="background:var(--rl);margin-bottom:12px;">
         <div style="font-size:13px;font-weight:600;color:var(--rink);">Total charges / mois</div>
@@ -642,7 +637,7 @@
 
     <!-- REVENUS RECURRENTS -->
     <div class="page" id="page-revenus">
-      <div class="row-between" style="margin-bottom:4px;"><div style="font-size:18px;font-weight:600;">💼 Revenus récurrents</div><button class="btn btn-p btn-sm" onclick="openRecurModal(null,'rev')">+ Ajouter</button></div>
+      <div class="row-between" style="margin-bottom:4px;"><div style="font-size:18px;font-weight:600;display:flex;align-items:center;gap:7px;"><svg class="tic" viewBox="0 0 24 24" fill="none" stroke="var(--pa)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2.8" y="7.8" width="18.4" height="11" rx="2.2"/><path d="M8.4 7.8V6.4A1.6 1.6 0 0 1 10 4.8h4a1.6 1.6 0 0 1 1.6 1.6v1.4"/><path d="M2.8 12.4h18.4"/><path d="M11 12.4v1.6h2v-1.6"/></svg><span>Revenus récurrents</span></div><button class="btn btn-p btn-sm" onclick="openRecurModal(null,'rev')">+ Ajouter</button></div>
       <div style="font-size:13px;color:var(--t2);margin-bottom:14px;">Crédités automatiquement chaque mois</div>
       <div class="info-card" style="background:var(--gl);margin-bottom:12px;">
         <div style="font-size:13px;font-weight:600;color:var(--g);">Total revenus fixes / mois</div>
@@ -653,7 +648,7 @@
 
     <!-- BANQUES -->
     <div class="page" id="page-banques">
-      <div style="font-size:18px;font-weight:600;margin-bottom:4px;">🏦 Mes banques</div>
+      <div style="font-size:18px;font-weight:600;margin-bottom:4px;display:flex;align-items:center;gap:7px;"><svg class="tic" viewBox="0 0 24 24" fill="none" stroke="var(--pa)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3.8 9.5 12 4.3l8.2 5.2"/><path d="M5.2 9.5h13.6"/><path d="M6.6 10.2v6.6M9.8 10.2v6.6M14.2 10.2v6.6M17.4 10.2v6.6"/><path d="M4.5 16.8h15"/><path d="M4.5 19.5h15"/></svg><span>Mes banques</span></div>
       <div style="font-size:13px;color:var(--t2);margin-bottom:16px;">Connectez votre banque pour importer automatiquement vos transactions</div>
 
       <div id="bank-connected-list"></div>
@@ -687,13 +682,13 @@
 
     <!-- CATEGORIES -->
     <div class="page" id="page-categories">
-      <div class="row-between" style="margin-bottom:14px;"><div style="font-size:18px;font-weight:600;">🔖 Catégories</div><button class="btn btn-p btn-sm" onclick="openCatModal(null)">+ Nouvelle</button></div>
+      <div class="row-between" style="margin-bottom:14px;"><div style="font-size:18px;font-weight:600;display:flex;align-items:center;gap:7px;"><svg class="tic" viewBox="0 0 24 24" fill="none" stroke="var(--pa)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3.6 12.5V5.5a1.9 1.9 0 0 1 1.9-1.9h7a1.9 1.9 0 0 1 1.35.56l6.5 6.5a1.9 1.9 0 0 1 0 2.7l-7 7a1.9 1.9 0 0 1-2.7 0l-6.5-6.5a1.9 1.9 0 0 1-.55-1.36z"/><circle cx="8" cy="8" r="1.5"/></svg><span>Catégories</span></div><button class="btn btn-p btn-sm" onclick="openCatModal(null)">+ Nouvelle</button></div>
       <div class="card"><div id="cat-list"></div></div>
     </div>
 
     <!-- COMPARATIF MENSUEL -->
     <div class="page" id="page-export">
-      <div style="font-size:18px;font-weight:600;margin-bottom:4px;">📥 Export Excel</div>
+      <div style="font-size:18px;font-weight:600;margin-bottom:4px;display:flex;align-items:center;gap:7px;"><svg class="tic" viewBox="0 0 24 24" fill="none" stroke="var(--pa)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v9.5"/><path d="M7.8 9.3 12 13.5l4.2-4.2"/><path d="M4.5 15.5v2.2a1.8 1.8 0 0 0 1.8 1.8h11.4a1.8 1.8 0 0 0 1.8-1.8v-2.2"/></svg><span>Export Excel</span></div>
       <div style="font-size:13px;color:var(--t2);margin-bottom:14px;">Télécharge tes transactions d'une période au format .xlsx</div>
       <div class="card">
         <div class="fgroup"><label class="flabel">Date de début</label><input type="date" id="exp-from" onchange="updateExportCount()"></div>
@@ -712,7 +707,7 @@
       <div style="font-size:12px;color:var(--t2);margin-top:10px;line-height:1.5;">Le fichier contient : date, type, catégorie, description, montant (négatif pour les dépenses) et s'il s'agit d'une charge récurrente. Le filtre porte sur la <b>date réelle</b> de chaque transaction.</div>
     </div>
     <div class="page" id="page-compare">
-      <div style="font-size:18px;font-weight:600;margin-bottom:4px;">📊 Comparatif mensuel</div>
+      <div style="font-size:18px;font-weight:600;margin-bottom:4px;display:flex;align-items:center;gap:7px;"><svg class="tic" viewBox="0 0 24 24" fill="none" stroke="var(--pa)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="11" width="3.4" height="7.5" rx="1" fill="var(--pa)" stroke="none"/><rect x="10.3" y="6.5" width="3.4" height="12" rx="1" fill="var(--pa)" stroke="none"/><rect x="16.1" y="13.5" width="3.4" height="5" rx="1" fill="var(--pa)" stroke="none"/></svg><span>Comparatif mensuel</span></div>
       <div style="font-size:13px;color:var(--t2);margin-bottom:14px;">Dépenses par poste, entre deux périodes</div>
       <div class="cmp-pick">
         <button class="cmp-pick-btn" onclick="openCmpPicker('b')"><span class="cmp-pick-label">Référence</span><span class="cmp-pick-val" id="cmp-label-b">—</span></button>
@@ -727,7 +722,7 @@
 
     <!-- PROFIL -->
     <div class="page" id="page-profile">
-      <div style="font-size:18px;font-weight:600;margin-bottom:4px;">👤 Mon profil</div>
+      <div style="font-size:18px;font-weight:600;margin-bottom:4px;display:flex;align-items:center;gap:7px;"><svg class="tic" viewBox="0 0 24 24" fill="none" stroke="var(--pa)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.2" r="3.6"/><path d="M5.5 19.5a6.5 6.5 0 0 1 13 0"/></svg><span>Mon profil</span></div>
       <div style="font-size:13px;color:var(--t2);margin-bottom:14px;">Tes informations et la sécurité de ton compte</div>
 
       <div class="card" style="display:flex;align-items:center;gap:14px;">
