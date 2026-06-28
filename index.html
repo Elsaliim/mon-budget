@@ -419,6 +419,10 @@
       <div class="si-icon" style="background:#F7EEDB;">📊</div>
       <div><div class="si-label">Comparatif mensuel</div><div class="si-sub">Dépenses mois vs mois</div></div>
     </button>
+    <button class="sidemenu-item" onclick="openMenuPage('export')">
+      <div class="si-icon" style="background:#E5F0E9;">📥</div>
+      <div><div class="si-label">Export Excel</div><div class="si-sub">Transactions sur une période</div></div>
+    </button>
     <div class="sidemenu-divider"></div>
     <div class="sidemenu-section">Paramètres</div>
     <button class="sidemenu-item" onclick="openMenuPage('categories')">
@@ -686,6 +690,25 @@
     </div>
 
     <!-- COMPARATIF MENSUEL -->
+    <div class="page" id="page-export">
+      <div style="font-size:18px;font-weight:600;margin-bottom:4px;">📥 Export Excel</div>
+      <div style="font-size:13px;color:var(--t2);margin-bottom:14px;">Télécharge tes transactions d'une période au format .xlsx</div>
+      <div class="card">
+        <div class="fgroup"><label class="flabel">Date de début</label><input type="date" id="exp-from" onchange="updateExportCount()"></div>
+        <div class="fgroup"><label class="flabel">Date de fin</label><input type="date" id="exp-to" onchange="updateExportCount()"></div>
+        <div class="fgroup"><label class="flabel">Type de transactions</label>
+          <select id="exp-type" onchange="updateExportCount()">
+            <option value="all">Toutes</option>
+            <option value="dep">Dépenses</option>
+            <option value="rev">Revenus</option>
+            <option value="sav">Épargne</option>
+          </select>
+        </div>
+        <div id="exp-count" style="font-size:13px;color:var(--t2);margin:4px 0 14px;">—</div>
+        <button class="btn btn-p" onclick="exportExcel(this)">📥 Télécharger le fichier Excel</button>
+      </div>
+      <div style="font-size:12px;color:var(--t2);margin-top:10px;line-height:1.5;">Le fichier contient : date, type, catégorie, description, montant (négatif pour les dépenses) et s'il s'agit d'une charge récurrente. Le filtre porte sur la <b>date réelle</b> de chaque transaction.</div>
+    </div>
     <div class="page" id="page-compare">
       <div style="font-size:18px;font-weight:600;margin-bottom:4px;">📊 Comparatif mensuel</div>
       <div style="font-size:13px;color:var(--t2);margin-bottom:14px;">Dépenses par poste, entre deux périodes</div>
@@ -2192,6 +2215,72 @@ function goPage(name){
   if(name==='budget')updateBudget();
   window.scrollTo(0,0);
 }
+// -- EXPORT EXCEL --
+function frDate(d){if(!d)return '';const p=(''+d).slice(0,10).split('-');return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:d;}
+function expIsSav(t){return t.sav_type==='in'||t.sav_type==='out'||t.cat===CAT_SAVINGS;}
+function expRows(){
+  const from=document.getElementById('exp-from').value;
+  const to=document.getElementById('exp-to').value;
+  const tf=document.getElementById('exp-type').value;
+  if(!from||!to||from>to)return null;
+  let rows=TX.filter(t=>t.date&&t.date>=from&&t.date<=to);
+  rows=rows.filter(t=>{const sav=expIsSav(t);if(tf==='all')return true;if(tf==='sav')return sav;if(tf==='dep')return t.type==='dep'&&!sav;if(tf==='rev')return t.type==='rev'&&!sav;return true;});
+  rows.sort((a,b)=>a.date<b.date?-1:(a.date>b.date?1:0));
+  return rows;
+}
+function updateExportCount(){
+  const el=document.getElementById('exp-count');if(!el)return;
+  const from=document.getElementById('exp-from').value,to=document.getElementById('exp-to').value;
+  if(!from||!to){el.textContent='Choisis une date de début et de fin.';return;}
+  if(from>to){el.textContent='⚠️ La date de début est postérieure à la date de fin.';return;}
+  const rows=expRows();const n=rows?rows.length:0;
+  el.textContent=n?`${n} transaction${n>1?'s':''} sur la période.`:'Aucune transaction sur cette période.';
+}
+function setupExportPage(){
+  const f=document.getElementById('exp-from'),t=document.getElementById('exp-to');
+  const today=new Date(),pad=n=>String(n).padStart(2,'0');
+  if(f&&!f.value)f.value=`${today.getFullYear()}-${pad(today.getMonth()+1)}-01`;
+  if(t&&!t.value)t.value=`${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
+  updateExportCount();
+}
+function loadXLSX(){
+  return new Promise((resolve,reject)=>{
+    if(window.XLSX)return resolve(window.XLSX);
+    const s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+    s.onload=()=>window.XLSX?resolve(window.XLSX):reject(new Error('module'));
+    s.onerror=()=>reject(new Error('reseau'));
+    document.head.appendChild(s);
+  });
+}
+async function exportExcel(btn){
+  const rows=expRows();
+  if(rows===null){toast('(!) Vérifie les dates');return;}
+  if(!rows.length){toast('(!) Aucune transaction sur cette période');return;}
+  const from=document.getElementById('exp-from').value,to=document.getElementById('exp-to').value;
+  const old=btn?btn.textContent:'';if(btn){btn.disabled=true;btn.textContent='Préparation…';}
+  setSyncState('syncing');
+  try{
+    const XLSX=await loadXLSX();
+    const data=rows.map(t=>{
+      const sav=expIsSav(t);
+      const typeLabel=sav?'Épargne':(t.type==='rev'?'Revenu':'Dépense');
+      const signed=Math.round(((t.type==='rev'?1:-1)*(t.amount||0))*100)/100;
+      return {'Date':frDate(t.date),'Type':typeLabel,'Catégorie':t.cat||'','Description':t.description||'','Montant (€)':signed,'Récurrent':t.auto?'Oui':'Non'};
+    });
+    const ws=XLSX.utils.json_to_sheet(data,{header:['Date','Type','Catégorie','Description','Montant (€)','Récurrent']});
+    ws['!cols']=[{wch:12},{wch:10},{wch:18},{wch:32},{wch:13},{wch:11}];
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,'Transactions');
+    XLSX.writeFile(wb,`Carat_transactions_${from}_${to}.xlsx`);
+    setSyncState('ok');toast('OK Fichier Excel téléchargé');
+  }catch(e){
+    setSyncState('error');
+    toast(e&&e.message==='reseau'?'(!) Échec du chargement du module Excel (connexion ?)':'(!) Export impossible');
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent=old;}
+  }
+}
 function openMenuPage(name){
   closeMenu();
   document.querySelectorAll('.side-nav-btn').forEach(b=>b.classList.remove('active'));
@@ -2203,6 +2292,7 @@ function openMenuPage(name){
   if(name==='revenus')updateRecurPage('rev');
   if(name==='categories')updateCatPage();
   if(name==='compare'){updateComparePage();}
+  if(name==='export'){setupExportPage();}
   if(name==='profile'){updateProfilePage();}
   window.scrollTo(0,0);
 }
