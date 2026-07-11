@@ -390,6 +390,26 @@
     .side-nav-btn:hover{background:var(--s2)}
     .side-nav-btn.active{background:var(--pl);color:var(--pa);font-weight:600}
     .side-nav-btn.active svg{stroke:var(--pa)}
+    /* ===== RECHERCHE D'OPÉRATIONS ===== */
+    .topbar-right{display:flex;align-items:center;gap:4px}
+    .icon-round-btn{background:none;border:none;cursor:pointer;padding:6px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--pa);-webkit-tap-highlight-color:transparent;flex-shrink:0}
+    .icon-round-btn:active{background:var(--pl)}
+    .icon-round-btn svg{width:21px;height:21px;display:block}
+    #search-modal .modal-box{max-height:88dvh;display:flex;flex-direction:column;overflow:hidden;padding:16px 16px 18px}
+    .search-topline{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+    .search-x{background:var(--s2);border:none;color:var(--t2);font-size:13px;cursor:pointer;width:30px;height:30px;border-radius:50%;flex-shrink:0;-webkit-tap-highlight-color:transparent}
+    .search-x:active{background:var(--b)}
+    .search-field{display:flex;align-items:center;gap:9px;background:var(--s2);border:1px solid var(--b);border-radius:12px;padding:11px 13px;transition:border-color .15s,box-shadow .15s}
+    .search-field:focus-within{border-color:var(--pa);box-shadow:0 0 0 3px rgba(22,64,47,.16)}
+    .search-field .sf-ico{width:19px;height:19px;flex-shrink:0;color:var(--t2)}
+    .search-field input{flex:1;min-width:0;border:none;background:none;outline:none;font-size:16px;color:var(--t);padding:0}
+    .search-clear{display:none;align-items:center;justify-content:center;background:var(--t2);border:none;width:20px;height:20px;border-radius:50%;color:var(--s);font-size:11px;line-height:1;cursor:pointer;flex-shrink:0;-webkit-tap-highlight-color:transparent}
+    .search-chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}
+    .search-meta{font-size:12px;color:var(--t2);margin-top:12px;min-height:15px;font-weight:500}
+    #search-results{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;margin-top:4px}
+    #search-results::-webkit-scrollbar{width:0}
+    .search-hl{background:var(--gold2);color:var(--goldink);border-radius:3px;padding:0 1px}
+    :root[data-theme="dark"] .search-hl{background:rgba(226,192,121,.26);color:var(--gold)}
   </style>
 </head>
 <body>
@@ -504,10 +524,13 @@
       <button class="menu-btn" onclick="openMenu()"><span></span><span></span><span></span></button>
       <span class="app-title" onclick="goPage('home')" style="cursor:pointer;" title="Accueil"><span class="brand-logo desktop-only"><svg viewBox="0 0 200 200"><path d="M100 124 L83 158 H117 Z" fill="#16402F"></path><circle cx="100" cy="88" r="36" fill="none" stroke="#16402F" stroke-width="7"></circle><path d="M115 73 A20 20 0 1 0 115 103" fill="none" stroke="#16402F" stroke-width="6" stroke-linecap="round"></path><path d="M81 84 H117" fill="none" stroke="#16402F" stroke-width="5.5" stroke-linecap="round"></path><path d="M81 94 H113" fill="none" stroke="#16402F" stroke-width="5.5" stroke-linecap="round"></path></svg></span><span class="brand-text">Carat</span> <span class="sync-dot" id="sync-dot"></span></span>
     </div>
-    <div class="month-nav">
-      <button class="month-btn" onclick="changeMonth(-1)">‹</button>
-      <button class="month-label-btn" onclick="openMonthPicker()"><span id="month-label">—</span></button>
-      <button class="month-btn dis" id="next-btn" onclick="changeMonth(1)">›</button>
+    <div class="topbar-right">
+      <button class="icon-round-btn" onclick="openSearch()" aria-label="Rechercher une opération" title="Rechercher"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg></button>
+      <div class="month-nav">
+        <button class="month-btn" onclick="changeMonth(-1)">‹</button>
+        <button class="month-label-btn" onclick="openMonthPicker()"><span id="month-label">—</span></button>
+        <button class="month-btn dis" id="next-btn" onclick="changeMonth(1)">›</button>
+      </div>
     </div>
   </div>
 
@@ -940,6 +963,24 @@
     <div class="modal-sub" id="bm-sub"></div>
     <div class="fgroup"><label class="flabel">Plafond mensuel (€)</label><input type="number" id="bm-input" min="0" step="1" inputmode="numeric"/></div>
     <div class="btn-row"><button class="btn btn-ghost" onclick="closeModal('bm-modal')">Annuler</button><button class="btn btn-p" onclick="saveBudgetEdit()">Enregistrer</button></div>
+  </div>
+</div>
+
+<!-- RECHERCHE -->
+<div class="modal-ov" id="search-modal" onclick="maybeClose('search-modal',event)">
+  <div class="modal-box">
+    <div class="search-topline">
+      <div class="modal-title" style="margin-bottom:0;">Rechercher une opération</div>
+      <button class="search-x" onclick="closeModal('search-modal')" aria-label="Fermer">✕</button>
+    </div>
+    <div class="search-field">
+      <svg class="sf-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>
+      <input type="text" id="search-input" inputmode="search" autocomplete="off" enterkeyhint="search" placeholder="Libellé ou montant…" oninput="runSearch()"/>
+      <button class="search-clear" id="search-clear" onclick="clearSearch()" aria-label="Effacer la recherche">✕</button>
+    </div>
+    <div class="search-chips" id="search-chips"></div>
+    <div class="search-meta" id="search-meta"></div>
+    <div id="search-results"></div>
   </div>
 </div>
 
@@ -2329,6 +2370,102 @@ async function changePassword(){
   document.getElementById('pf-old').value='';
   document.getElementById('pf-new').value='';
   document.getElementById('pf-new2').value='';
+}
+
+// -- RECHERCHE D'OPÉRATIONS --
+// Recherche dans TOUTES les transactions (tous les mois) par libellé ou montant.
+let searchType='all';
+function srchNorm(s){return (s==null?'':String(s)).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');}
+function srchIsSav(t){return t.sav_type==='in'||t.sav_type==='out'||t.cat===CAT_SAVINGS;}
+function srchEsc(s){return (s==null?'':String(s)).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function srchHighlight(text,q){
+  var safe=srchEsc(text);
+  if(!q)return safe;
+  try{var rx=new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','ig');return safe.replace(rx,'<mark class="search-hl">$1</mark>');}catch(e){return safe;}
+}
+function openSearch(){
+  closeMenu();
+  searchType='all';
+  renderSearchChips();
+  var inp=document.getElementById('search-input');
+  inp.value='';
+  runSearch();
+  document.getElementById('search-modal').classList.add('open');
+  setTimeout(function(){inp.focus();},160);
+}
+function clearSearch(){var inp=document.getElementById('search-input');inp.value='';runSearch();inp.focus();}
+function setSearchType(t){searchType=t;renderSearchChips();runSearch();}
+function renderSearchChips(){
+  var wrap=document.getElementById('search-chips');if(!wrap)return;
+  wrap.innerHTML='';
+  [['all','Tout'],['dep','Dépenses'],['rev','Revenus'],['sav','Épargne']].forEach(function(o){
+    var b=document.createElement('button');b.type='button';b.className='ichip'+(searchType===o[0]?' sel':'');b.textContent=o[1];b.onclick=function(){setSearchType(o[0]);};wrap.appendChild(b);
+  });
+}
+function runSearch(){
+  var raw=document.getElementById('search-input').value;
+  var q=raw.trim();
+  document.getElementById('search-clear').style.display=q?'flex':'none';
+  var meta=document.getElementById('search-meta');
+  var box=document.getElementById('search-results');
+  if(!q){
+    box.innerHTML='<div class="empty" style="padding:30px 10px;"><div class="ei">🔍</div>Tape un libellé (ex : « Lidl ») ou un montant (ex : « 42 ») pour chercher dans toutes tes opérations.</div>';
+    meta.textContent='';
+    return;
+  }
+  var nq=srchNorm(q);
+  var numQ=q.replace(/\s/g,'').replace(',','.');
+  var isNum=/^\d*\.?\d+$/.test(numQ);
+  var num=isNum?parseFloat(numQ):null;
+  var results=TX.filter(function(t){
+    if(searchType==='sav'){if(!srchIsSav(t))return false;}
+    else if(searchType==='dep'){if(t.type!=='dep'||srchIsSav(t))return false;}
+    else if(searchType==='rev'){if(t.type!=='rev'||srchIsSav(t))return false;}
+    var descMatch=srchNorm(t.description).indexOf(nq)>=0;
+    var amtMatch=false;
+    if(isNum){var amtStr=String(t.amount);amtMatch=amtStr.indexOf(numQ)>=0||Math.abs(t.amount-num)<0.005;}
+    return descMatch||amtMatch;
+  });
+  results.sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});
+  if(results.length){
+    var somme=results.reduce(function(s,t){return s+(t.type==='rev'?t.amount:-t.amount);},0);
+    meta.innerHTML=results.length+' résultat'+(results.length>1?'s':'')+' · solde '+(somme>=0?'+':'')+fmt(somme);
+  }else{
+    meta.textContent='';
+  }
+  renderSearchResults(results,q);
+}
+function renderSearchResults(results,rawQ){
+  var box=document.getElementById('search-results');
+  box.innerHTML='';
+  if(!results.length){
+    box.innerHTML='<div class="empty" style="padding:30px 10px;"><div class="ei">🧾</div>Aucune opération ne correspond.</div>';
+    return;
+  }
+  results.forEach(function(t){
+    var cat=catOf(t.cat);
+    var isSavIn=t.sav_type==='in',isSavOut=t.sav_type==='out';
+    var dObj=t.date?new Date(t.date+'T12:00:00'):null;
+    var ds=dObj?dObj.toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'}):'';
+    var displayNeg=t.type==='dep'||isSavIn;
+    var subcat=isSavIn||isSavOut?'Épargne':t.cat;
+    var fallbackIcon=isSavIn?catSVG('piggy','#1F7A4D',22):isSavOut?catSVG('moneyout','#C5443A',22):(t.type==='rev'?catSVG('briefcase','#1F7A4D',22):catSVG(cat.icon,cat.color||'var(--pa)',22));
+    var fallbackBg=isSavIn?'#EAF3DE':isSavOut?'#FCEBEB':(t.type==='rev'?'#EAF3DE':(cat.color||'#16402F')+'22');
+    var autoTag=t.auto?'<span class="auto-tag rtag">'+SVG_RECUR+'</span>':'';
+    var pendingTag=t.status==='pending'?'<span class="pending-tag">🏦</span>':'';
+    var d=document.createElement('div');
+    d.className='tx-item';d.style.cursor='pointer';
+    d.innerHTML='<div class="tx-ico" id="sico-'+t.id+'" style="display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;font-size:18px;flex-shrink:0;background:'+fallbackBg+';">'+fallbackIcon+'</div><div class="tx-info"><div class="tx-name">'+srchHighlight(t.description,rawQ)+autoTag+pendingTag+'</div><div class="tx-date">'+subcat+' · '+ds+'</div></div><div class="tx-amt '+(displayNeg?'neg':'pos')+'">'+(displayNeg?'-':'+')+fmt(t.amount)+'</div>';
+    (function(id,sIn,sOut,fi,fb){requestAnimationFrame(function(){var ico=document.getElementById('sico-'+id);if(ico&&!sIn&&!sOut)renderBrandIcon(ico,t.description,fi,fb,40);});})(t.id,isSavIn,isSavOut,fallbackIcon,fallbackBg);
+    d.onclick=function(){closeModal('search-modal');openTxFromSearch(t);};
+    box.appendChild(d);
+  });
+}
+function openTxFromSearch(t){
+  var key=txMonthKey(t)||(t.date?t.date.slice(0,7):'');
+  if(key){var parts=key.split('-');vY=parseInt(parts[0]);vM=parseInt(parts[1])-1;updateMonthUI();applyRecur();updateAll();}
+  goPage('home');
+  setTimeout(function(){openTxEdit(t.id);},140);
 }
 
 // -- PAGE NAV --
