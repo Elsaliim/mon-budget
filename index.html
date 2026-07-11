@@ -1174,8 +1174,9 @@ async function handleAuth(){
     if(error){errEl.textContent=error.message==='Invalid login credentials'?'Email ou mot de passe incorrect.':error.message;errEl.classList.add('show');document.getElementById('auth-submit-btn').textContent='Se connecter';}
   }else{
     const name=document.getElementById('auth-name').value.trim();
-    const{error}=await supa.auth.signUp({email,password,options:{data:{full_name:name}}});
+    const{data,error}=await supa.auth.signUp({email,password,options:{data:{full_name:name}}});
     if(error){errEl.textContent=error.message;errEl.classList.add('show');document.getElementById('auth-submit-btn').textContent='Créer mon compte';}
+    else if(data&&data.user&&Array.isArray(data.user.identities)&&data.user.identities.length===0){errEl.textContent='Cet email est déjà utilisé. Connectez-vous ou réinitialisez votre mot de passe.';errEl.classList.add('show');document.getElementById('auth-submit-btn').textContent='Créer mon compte';}
     else{errEl.style.background='var(--gl)';errEl.style.color='var(--g)';errEl.textContent='OK Compte créé ! Vérifiez vos emails pour confirmer.';errEl.classList.add('show');document.getElementById('auth-submit-btn').textContent='Créer mon compte';}
   }
 }
