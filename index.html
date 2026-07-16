@@ -410,6 +410,19 @@
     #search-results::-webkit-scrollbar{width:0}
     .search-hl{background:var(--gold2);color:var(--goldink);border-radius:3px;padding:0 1px}
     :root[data-theme="dark"] .search-hl{background:rgba(226,192,121,.26);color:var(--gold)}
+    /* ===== ALERTE DOUBLON (saisie) ===== */
+    .dup-hint{display:none;background:var(--al);border-left:3px solid var(--a);border-radius:var(--rsm);padding:12px 14px;margin-bottom:14px}
+    .dup-head{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--aink)}
+    .dup-head svg{width:16px;height:16px;flex-shrink:0}
+    .dup-sub{font-size:12px;color:var(--aink);opacity:.85;line-height:1.4;margin-top:3px}
+    .dup-list{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+    .dup-row{display:flex;align-items:center;gap:9px;background:var(--s);border-radius:8px;padding:8px 10px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+    .dup-row:active{opacity:.65}
+    .dup-ico{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .dup-info{flex:1;min-width:0}
+    .dup-name{font-size:13px;font-weight:500;color:var(--t);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .dup-meta{font-size:11px;color:var(--t2);margin-top:1px}
+    .dup-amt{font-size:13px;font-weight:600;color:var(--aink);flex-shrink:0;white-space:nowrap}
   </style>
 </head>
 <body>
@@ -618,9 +631,10 @@
           Pour un retrait, choisissez <strong>Retrait épargne</strong>.
         </div>
         <div class="fgroup"><label class="flabel">Description</label><input type="text" id="a-desc" placeholder="Ex : Courses Lidl"/></div>
-        <div class="fgroup"><label class="flabel">Montant (€)</label><input type="number" id="a-amount" placeholder="0,00" min="0" step="0.01" inputmode="decimal"/></div>
-        <div class="fgroup" id="a-cat-group"><label class="flabel">Catégorie</label><select id="a-cat"></select></div>
-        <div class="fgroup"><label class="flabel">Date</label><input type="date" id="a-date"/></div>
+        <div class="fgroup"><label class="flabel">Montant (€)</label><input type="number" id="a-amount" placeholder="0,00" min="0" step="0.01" inputmode="decimal" oninput="refreshDupHint()"/></div>
+        <div class="fgroup" id="a-cat-group"><label class="flabel">Catégorie</label><select id="a-cat" onchange="refreshDupHint()"></select></div>
+        <div class="fgroup"><label class="flabel">Date</label><input type="date" id="a-date" onchange="refreshDupHint()"/></div>
+        <div class="dup-hint" id="dup-hint"></div>
         <button class="btn btn-p" onclick="addTransaction()">Ajouter</button>
       </div>
     </div>
@@ -1739,6 +1753,7 @@ function setType(t){
       const o=document.createElement('option');o.value=val;o.textContent=lbl;sel.appendChild(o);
     });
   }
+  refreshDupHint();
 }
 
 async function addTransaction(){
@@ -2468,8 +2483,78 @@ function openTxFromSearch(t){
   setTimeout(function(){openTxEdit(t.id);},140);
 }
 
+// -- DÉTECTION DE DOUBLONS À LA SAISIE --
+// Règle stricte voulue : les 3 critères doivent être réunis — même date,
+// même montant, même catégorie (+ même sens d'opération, sinon un retrait
+// d'épargne serait vu comme le doublon d'un virement). Toujours informatif,
+// jamais bloquant : on montre l'opération en cause, l'utilisateur tranche.
+function dupAmountEq(a,b){return Math.abs(a-b)<0.005;}
+// Signature de l'opération en cours de saisie, ou null si le formulaire est incomplet.
+function dupFormSig(){
+  var amount=parseFloat(document.getElementById('a-amount').value);
+  var date=document.getElementById('a-date').value;
+  var catVal=document.getElementById('a-cat').value;
+  if(!amount||amount<=0||!date)return null;
+  if(addType==='rev')return{type:'rev',cat:'Revenu',sav:null,amount:amount,date:date};
+  if(addType==='sav'){
+    if(catVal==='sav_in')return{type:'dep',cat:CAT_SAVINGS,sav:'in',amount:amount,date:date};
+    return{type:'rev',cat:CAT_SAVINGS,sav:'out',amount:amount,date:date};
+  }
+  if(!catVal)return null;
+  return{type:'dep',cat:catVal,sav:null,amount:amount,date:date};
+}
+// Cherche dans TOUTES les opérations, y compris les récurrents auto-injectés
+// et les imports bancaires en attente : c'est là que les vrais doublons se cachent.
+function findDuplicates(){
+  var sig=dupFormSig();
+  if(!sig)return[];
+  return TX.filter(function(t){
+    if(t.date!==sig.date)return false;
+    if(!dupAmountEq(t.amount,sig.amount))return false;
+    if(t.cat!==sig.cat)return false;
+    if(t.type!==sig.type)return false;
+    if((t.sav_type||null)!==(sig.sav||null))return false;
+    return true;
+  });
+}
+var SVG_WARN='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 4.3 2.6 18a1.9 1.9 0 0 0 1.7 2.8h15.4a1.9 1.9 0 0 0 1.7-2.8L13.7 4.3a1.9 1.9 0 0 0-3.4 0z"/><path d="M12 9.5v4"/><circle cx="12" cy="17" r=".9" fill="currentColor" stroke="none"/></svg>';
+function refreshDupHint(){
+  var box=document.getElementById('dup-hint');
+  if(!box)return;
+  var pg=document.getElementById('page-add');
+  if(!pg||!pg.classList.contains('active')){box.style.display='none';return;}
+  var dups=findDuplicates();
+  if(!dups.length){box.style.display='none';box.innerHTML='';return;}
+  var n=dups.length;
+  box.innerHTML='<div class="dup-head">'+SVG_WARN+'<span>Opération peut-être saisie en doublon</span></div>'
+    +'<div class="dup-sub">Même date, même montant et même catégorie que '
+    +(n>1?(n+' opérations déjà enregistrées'):'une opération déjà enregistrée')+'.</div>'
+    +'<div class="dup-list" id="dup-list"></div>';
+  var list=document.getElementById('dup-list');
+  dups.forEach(function(t){
+    var cat=catOf(t.cat);
+    var isSavIn=t.sav_type==='in',isSavOut=t.sav_type==='out';
+    var ico=isSavIn?catSVG('piggy','#1F7A4D',18):isSavOut?catSVG('moneyout','#C5443A',18):(t.type==='rev'?catSVG('briefcase','#1F7A4D',18):catSVG(cat.icon,cat.color||'var(--pa)',18));
+    var bg=isSavIn?'#EAF3DE':isSavOut?'#FCEBEB':(t.type==='rev'?'#EAF3DE':(cat.color||'#16402F')+'22');
+    var ds=t.date?new Date(t.date+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'}):'';
+    var tags='';
+    if(t.auto)tags+='<span class="auto-tag rtag">'+SVG_RECUR+'</span>';
+    if(t.status==='pending')tags+='<span class="pending-tag">🏦</span>';
+    var neg=t.type==='dep'||isSavIn;
+    var row=document.createElement('div');
+    row.className='dup-row';
+    row.innerHTML='<div class="dup-ico" style="background:'+bg+';">'+ico+'</div>'
+      +'<div class="dup-info"><div class="dup-name">'+(t.description||'—')+tags+'</div>'
+      +'<div class="dup-meta">'+ds+' · '+t.cat+'</div></div>'
+      +'<div class="dup-amt">'+(neg?'-':'+')+fmt(t.amount)+'</div>';
+    row.onclick=function(){openTxEdit(t.id);};
+    list.appendChild(row);
+  });
+  box.style.display='block';
+}
+
 // -- PAGE NAV --
-function updateAll(){updateHome();updateBudget()}
+function updateAll(){updateHome();updateBudget();refreshDupHint()}
 function goPage(name){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
@@ -2479,6 +2564,7 @@ function goPage(name){
   document.getElementById('side-nav-'+name)?.classList.add('active');
   if(name==='dash')setTimeout(buildDash,80);
   if(name==='budget')updateBudget();
+  if(name==='add')refreshDupHint();
   window.scrollTo(0,0);
 }
 // -- EXPORT EXCEL --
