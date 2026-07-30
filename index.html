@@ -432,6 +432,8 @@
     .arch-badge{display:inline-flex;align-items:center;font-size:10px;font-weight:600;padding:2px 6px;border-radius:8px;background:var(--s2);color:var(--t2);margin-left:6px;vertical-align:middle}
     .arch-count{margin-left:auto;background:var(--s2);color:var(--t2);font-size:11px;font-weight:700;padding:2px 9px;border-radius:10px}
     .arch-grand{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:12px;padding-top:12px;border-top:.5px solid var(--b);font-size:13px;font-weight:700;color:var(--t)}
+    .arch-hint{display:flex;align-items:center;gap:8px;margin-top:12px;padding:11px 13px;border:1px dashed var(--b);border-radius:var(--rsm);font-size:12px;color:var(--t2)}
+    .arch-hint svg{flex-shrink:0;opacity:.7}
   </style>
 </head>
 <body>
@@ -2068,7 +2070,7 @@ async function saveRecur(){
   }else{
     await dbAddRecur({name,amount,cat,day,icon,start,end,rtype:recurModalType,month_shift:monthShift,next_month:monthShift===1});
   }
-  if(editingRecurId){await purgeRecurOutOfWindow(RECUR.find(function(r){return r.id===editingRecurId;}));}
+  if(editingRecurId){var _r=RECUR.find(function(r){return r.id===editingRecurId;});await purgeRecurOutOfWindow(_r);await propagateRecurToFuture(_r);}
   closeModal('recur-modal');toast(editingRecurId?'OK Mis à jour':'OK Récurrent ajouté');
   await applyRecur();updateAll();updateRecurPage(recurModalType);
 }
@@ -2636,7 +2638,7 @@ async function purgeAllRecurWindows(){
 function renderRecurArchive(rtype,archived){
   var box=document.getElementById(rtype==='dep'?'charges-archive':'revenus-archive');
   if(!box)return;
-  if(!archived||!archived.length){box.innerHTML='';return;}
+  if(!archived||!archived.length){var hasEnd=RECUR.some(function(r){return (r.rtype||'dep')===rtype&&r.end&&!recurIsArchived(r);});box.innerHTML=hasEnd?('<div class="arch-hint">'+ARCH_SVG+'<span>Les '+(rtype==='dep'?'charges terminées':'revenus terminés')+' appara\u00eetront ici, avec le total sur leur durée.</span></div>'):'';return;}
   var isDep=rtype==='dep';
   var grand=0,rows='';
   archived.slice().sort(function(a,b){return (b.end||'').localeCompare(a.end||'');}).forEach(function(r){
@@ -2647,6 +2649,25 @@ function renderRecurArchive(rtype,archived){
     rows+=`<div class="recur-item arch-item" onclick="openRecurModal('${r.id}',null)"><div class="recur-ico" style="background:${(cat.color||'#16402F')}18;">${catSVG(r.icon||cat.icon,cat.color||'var(--pa)',22)}</div><div class="recur-info"><div class="recur-name">${r.name}<span class="arch-badge">terminé</span></div><div class="recur-meta">${period} · ${s?s.months:0} mois</div></div><div style="text-align:right;flex-shrink:0;"><div class="recur-amt ${isDep?'neg':'pos'}" style="font-size:14px;">${isDep?'-':'+'}${fmt(paid)}</div><div style="font-size:10px;color:var(--t2);">${isDep?'total payé':'total perçu'}</div></div></div>`;
   });
   box.innerHTML=`<div class="card arch-card"><div class="sec-title" style="display:flex;align-items:center;gap:7px;margin-bottom:12px;">${ARCH_SVG}<span>${isDep?'Charges archivées':'Revenus archivés'}</span><span class="arch-count">${archived.length}</span></div>${rows}<div class="arch-grand"><span>Total ${isDep?'payé':'perçu'} — période terminée</span><span>${isDep?'-':'+'}${fmt(grand)}</span></div></div>`;
+}
+
+// -- PROPAGATION D'UN RÉCURRENT MODIFIÉ AUX MOIS À VENIR --
+// Quand on modifie un récurrent, on met à jour les occurrences déjà injectées
+// dont la date est >= aujourd'hui (le futur), sans jamais toucher les mois
+// passés. Une occurrence déjà conforme n'est pas réécrite (évite les écritures
+// inutiles). Éditer un récurrent "re-modèle" donc les mois à venir.
+async function propagateRecurToFuture(r){
+  if(!r)return 0;
+  var todayStr=new Date().toISOString().slice(0,10);
+  var occ=TX.filter(function(t){return t.recur_id===r.id&&t.auto&&t.date&&t.date>=todayStr;});
+  var n=0;
+  for(var i=0;i<occ.length;i++){
+    var t=occ[i];
+    if(Math.abs(t.amount-r.amount)<0.005&&t.description===r.name&&t.cat===r.cat)continue;
+    await dbUpdateTx(t.id,{amount:r.amount,description:r.name,cat:r.cat});
+    n++;
+  }
+  return n;
 }
 
 // -- PAGE NAV --
