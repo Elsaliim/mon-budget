@@ -424,6 +424,14 @@
     .dup-name{font-size:13px;font-weight:500;color:var(--t);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .dup-meta{font-size:11px;color:var(--t2);margin-top:1px}
     .dup-amt{font-size:13px;font-weight:600;color:var(--aink);flex-shrink:0;white-space:nowrap}
+    /* ===== ARCHIVE DES RÉCURRENTS ===== */
+    .arch-card{margin-top:12px}
+    .arch-item{cursor:pointer}
+    .arch-item:active{opacity:.6}
+    .arch-item .recur-ico{opacity:.85}
+    .arch-badge{display:inline-flex;align-items:center;font-size:10px;font-weight:600;padding:2px 6px;border-radius:8px;background:var(--s2);color:var(--t2);margin-left:6px;vertical-align:middle}
+    .arch-count{margin-left:auto;background:var(--s2);color:var(--t2);font-size:11px;font-weight:700;padding:2px 9px;border-radius:10px}
+    .arch-grand{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:12px;padding-top:12px;border-top:.5px solid var(--b);font-size:13px;font-weight:700;color:var(--t)}
   </style>
 </head>
 <body>
@@ -679,6 +687,7 @@
         <div style="font-size:24px;font-weight:700;color:var(--rink);" id="charges-total">0 €</div>
       </div>
       <div class="card"><div id="charges-list"></div></div>
+      <div id="charges-archive"></div>
     </div>
 
     <!-- REVENUS RECURRENTS -->
@@ -690,6 +699,7 @@
         <div style="font-size:24px;font-weight:700;color:var(--g);" id="revenus-total">0 €</div>
       </div>
       <div class="card"><div id="revenus-list"></div></div>
+      <div id="revenus-archive"></div>
     </div>
 
     <!-- BANQUES -->
@@ -1379,6 +1389,7 @@ async function syncInBackground(){
   try{
     setSyncState('syncing');
     await loadAllData();
+    await purgeAllRecurWindows();
     saveToCache();
     updateAll();
     setSyncState('ok');
@@ -1990,17 +2001,24 @@ function updateRecurPage(rtype){
   const list=isDep?document.getElementById('charges-list'):document.getElementById('revenus-list');
   list.innerHTML='';
   const filtered=RECUR.filter(r=>(r.rtype||'dep')===rtype);
-  const total=filtered.reduce((s,r)=>s+r.amount,0);
+  const active=filtered.filter(r=>!recurIsArchived(r));
+  const archived=filtered.filter(r=>recurIsArchived(r));
+  const total=active.reduce((s,r)=>s+r.amount,0);
   if(isDep)document.getElementById('charges-total').textContent=fmt(total);
   else document.getElementById('revenus-total').textContent=fmt(total);
-  if(!filtered.length){list.innerHTML=`<div class="empty"><div class="ei">${isDep?'🏠':'💼'}</div>Aucun récurrent.</div>`;return}
-  filtered.forEach(r=>{
-    const cat=catOf(r.cat);const d=document.createElement('div');d.className='recur-item';
-    const sh=recurShift(r);
-    const shiftLabel=sh!==0?` · 🗓 ${sh>0?'compté +'+sh+' mois':'compté '+sh+' mois'}`:'';
-    d.innerHTML=`<div class="recur-ico" style="background:${(cat.color||'#16402F')}22;">${catSVG(r.icon||cat.icon,cat.color||'var(--pa)',22)}</div><div class="recur-info"><div class="recur-name">${r.name}</div><div class="recur-meta">${r.cat} · le ${r.day}${r.start?' · dès '+r.start:''}${r.end?' -> '+r.end:''}${shiftLabel}</div></div><div class="recur-amt ${isDep?'neg':'pos'}">${isDep?'-':'+'}${fmt(r.amount)}</div><button class="icon-btn" onclick="openRecurModal('${r.id}',null)">${SVG_PENCIL}</button>`;
-    list.appendChild(d);
-  });
+  if(!active.length){
+    list.innerHTML=`<div class="empty"><div class="ei">${isDep?'🏠':'💼'}</div>${archived.length?'Aucun récurrent actif — voir les archives ci-dessous.':'Aucun récurrent.'}</div>`;
+  }else{
+    active.forEach(r=>{
+      const cat=catOf(r.cat);const d=document.createElement('div');d.className='recur-item';
+      const sh=recurShift(r);
+      const shiftLabel=sh!==0?` · 🗓 ${sh>0?'compté +'+sh+' mois':'compté '+sh+' mois'}`:'';
+      const endLabel=r.end?` · <span style="color:var(--a);font-weight:600;">fin ${fmtMonthKey(r.end)}</span>`:'';
+      d.innerHTML=`<div class="recur-ico" style="background:${(cat.color||'#16402F')}22;">${catSVG(r.icon||cat.icon,cat.color||'var(--pa)',22)}</div><div class="recur-info"><div class="recur-name">${r.name}</div><div class="recur-meta">${r.cat} · le ${r.day}${r.start?' · dès '+fmtMonthKey(r.start):''}${endLabel}${shiftLabel}</div></div><div class="recur-amt ${isDep?'neg':'pos'}">${isDep?'-':'+'}${fmt(r.amount)}</div><button class="icon-btn" onclick="openRecurModal('${r.id}',null)">${SVG_PENCIL}</button>`;
+      list.appendChild(d);
+    });
+  }
+  renderRecurArchive(rtype,archived);
 }
 
 function openRecurModal(id,rtype){
@@ -2050,6 +2068,7 @@ async function saveRecur(){
   }else{
     await dbAddRecur({name,amount,cat,day,icon,start,end,rtype:recurModalType,month_shift:monthShift,next_month:monthShift===1});
   }
+  if(editingRecurId){await purgeRecurOutOfWindow(RECUR.find(function(r){return r.id===editingRecurId;}));}
   closeModal('recur-modal');toast(editingRecurId?'OK Mis à jour':'OK Récurrent ajouté');
   await applyRecur();updateAll();updateRecurPage(recurModalType);
 }
@@ -2554,6 +2573,80 @@ function refreshDupHint(){
     list.appendChild(row);
   });
   box.style.display='block';
+}
+
+// -- ARCHIVE DES RÉCURRENTS (charges/revenus terminés) --
+// Un récurrent est "archivé" quand sa date de fin est un mois strictement
+// antérieur au mois réel courant : il quitte la liste active et rejoint
+// l'archive, avec le total payé/perçu sur toute sa période d'activité.
+var ARCH_SVG='<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--pa)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5 5 4h14l2 3.5"/><path d="M4 7.5h16V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M9.5 11.5h5"/></svg>';
+function recurIsArchived(r){
+  if(!r.end)return false;
+  return r.end < mKey(NOW.getFullYear(),NOW.getMonth());
+}
+function fmtMonthKey(key){
+  if(!key)return '—';
+  var p=String(key).split('-');
+  if(p.length<2)return key;
+  var l=new Date(parseInt(p[0]),parseInt(p[1])-1,1).toLocaleDateString('fr-FR',{month:'short',year:'numeric'});
+  return l;
+}
+// Total sur la période : montant réel de chaque occurrence si elle existe,
+// sinon le montant nominal ; les mois explicitement supprimés sont ignorés.
+function recurArchiveSummary(r){
+  if(!r.end)return null;
+  var startKey=r.start;
+  if(!startKey){
+    var ms=TX.filter(function(t){return t.recur_id===r.id&&t.date;}).map(function(t){return t.date.slice(0,7);}).sort();
+    startKey=ms.length?ms[0]:r.end;
+  }
+  var skips=recurSkips(r);
+  var byMonth={};
+  TX.filter(function(t){return t.recur_id===r.id&&t.date;}).forEach(function(t){byMonth[t.date.slice(0,7)]=t.amount;});
+  var sp=startKey.split('-'),ep=r.end.split('-');
+  var y=parseInt(sp[0]),m=parseInt(sp[1])-1;
+  var ey=parseInt(ep[0]),em=parseInt(ep[1])-1;
+  var months=0,total=0,guard=0;
+  while((y<ey||(y===ey&&m<=em))&&guard<600){
+    var key=mKey(y,m);
+    if(skips.indexOf(key)<0){months++;total+=(key in byMonth)?byMonth[key]:r.amount;}
+    m++;if(m>11){m=0;y++;}
+    guard++;
+  }
+  return{months:months,total:total,from:startKey,to:r.end};
+}
+// Supprime les occurrences auto d'un récurrent HORS de sa fenêtre [début, fin] :
+// corrige les charges terminées encore visibles dans les mois suivants
+// (occurrences injectées avant la pose de la date de fin).
+async function purgeRecurOutOfWindow(r){
+  if(!r)return 0;
+  var toDel=TX.filter(function(t){
+    if(t.recur_id!==r.id||!t.auto||!t.date)return false;
+    var mk=t.date.slice(0,7);
+    if(r.start&&mk<r.start)return true;
+    if(r.end&&mk>r.end)return true;
+    return false;
+  });
+  for(var i=0;i<toDel.length;i++){await dbDeleteTx(toDel[i].id);}
+  return toDel.length;
+}
+async function purgeAllRecurWindows(){
+  for(var i=0;i<RECUR.length;i++){await purgeRecurOutOfWindow(RECUR[i]);}
+}
+function renderRecurArchive(rtype,archived){
+  var box=document.getElementById(rtype==='dep'?'charges-archive':'revenus-archive');
+  if(!box)return;
+  if(!archived||!archived.length){box.innerHTML='';return;}
+  var isDep=rtype==='dep';
+  var grand=0,rows='';
+  archived.slice().sort(function(a,b){return (b.end||'').localeCompare(a.end||'');}).forEach(function(r){
+    var s=recurArchiveSummary(r);
+    var cat=catOf(r.cat);
+    var paid=s?s.total:0;grand+=paid;
+    var period=fmtMonthKey(s?s.from:r.start)+' → '+fmtMonthKey(r.end);
+    rows+=`<div class="recur-item arch-item" onclick="openRecurModal('${r.id}',null)"><div class="recur-ico" style="background:${(cat.color||'#16402F')}18;">${catSVG(r.icon||cat.icon,cat.color||'var(--pa)',22)}</div><div class="recur-info"><div class="recur-name">${r.name}<span class="arch-badge">terminé</span></div><div class="recur-meta">${period} · ${s?s.months:0} mois</div></div><div style="text-align:right;flex-shrink:0;"><div class="recur-amt ${isDep?'neg':'pos'}" style="font-size:14px;">${isDep?'-':'+'}${fmt(paid)}</div><div style="font-size:10px;color:var(--t2);">${isDep?'total payé':'total perçu'}</div></div></div>`;
+  });
+  box.innerHTML=`<div class="card arch-card"><div class="sec-title" style="display:flex;align-items:center;gap:7px;margin-bottom:12px;">${ARCH_SVG}<span>${isDep?'Charges archivées':'Revenus archivés'}</span><span class="arch-count">${archived.length}</span></div>${rows}<div class="arch-grand"><span>Total ${isDep?'payé':'perçu'} — période terminée</span><span>${isDep?'-':'+'}${fmt(grand)}</span></div></div>`;
 }
 
 // -- PAGE NAV --
