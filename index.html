@@ -169,6 +169,7 @@
     .tx-amt.neg{color:var(--r)}
     .tx-amt.pos{color:var(--g)}
     .auto-tag{display:inline-flex;align-items:center;background:var(--pl);color:var(--pa);font-size:10px;font-weight:600;padding:2px 6px;border-radius:8px;margin-left:5px;vertical-align:middle}
+    .auto-tag.tag-pay{background:var(--rl);color:var(--rink)}
 
     /* FORM */
     .type-toggle{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
@@ -1912,8 +1913,9 @@ function updateHome(){
     const autoTag=t.auto?`<span class="auto-tag rtag">${SVG_RECUR}</span>`:'';
     const pendingTag=t.status==='pending'?'<span class="pending-tag">🏦 Bancaire</span>':'';
     const isShifted=t.budget_month&&t.date&&t.date.slice(0,7)!==t.budget_month;
-    const shiftVerb=(t.type==='dep'&&!t.sav_type)?'payé':'versé';
-    const shiftTag=isShifted?`<span class="auto-tag">🗓 ${shiftVerb} le ${new Date(t.date+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'long'})}</span>`:'';
+    const isCharge=(t.type==='dep'&&!t.sav_type);
+    const shiftVerb=isCharge?'payé':'versé';
+    const shiftTag=isShifted?`<span class="auto-tag${isCharge?' tag-pay':''}">🗓 ${shiftVerb} le ${new Date(t.date+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'long'})}</span>`:'';
     const displayNeg=t.type==='dep'||isSavIn;
     const savLabel=isSavIn?'<span class="auto-tag">-> Épargne</span>':isSavOut?'<span class="auto-tag"><- Épargne</span>':'';
     const subcat=isSavIn||isSavOut?'Épargne':t.cat;
