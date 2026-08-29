@@ -434,6 +434,20 @@
     .arch-grand{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:12px;padding-top:12px;border-top:.5px solid var(--b);font-size:13px;font-weight:700;color:var(--t)}
     .arch-hint{display:flex;align-items:center;gap:8px;margin-top:12px;padding:11px 13px;border:1px dashed var(--b);border-radius:var(--rsm);font-size:12px;color:var(--t2)}
     .arch-hint svg{flex-shrink:0;opacity:.7}
+    /* ===== AMIS ===== */
+    .friend-row{display:flex;align-items:center;gap:11px;padding:11px 0;border-bottom:.5px solid var(--b)}
+    .friend-row:last-child{border-bottom:none}
+    .friend-av{width:38px;height:38px;border-radius:50%;background:linear-gradient(150deg,#F3E3B6,#D2AC63);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#16402F;flex-shrink:0}
+    .friend-info{flex:1;min-width:0}
+    .friend-name{font-size:14px;font-weight:500;color:var(--t);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .friend-mail{font-size:12px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .friend-actions{display:flex;gap:6px;flex-shrink:0}
+    .friend-btn{border:none;border-radius:8px;font-size:12px;font-weight:600;padding:7px 11px;cursor:pointer;-webkit-tap-highlight-color:transparent;flex-shrink:0}
+    .friend-btn.acc{background:var(--p);color:#fff}
+    .friend-btn.dec{background:var(--s2);color:var(--t2)}
+    /* ===== BUDGETS PARTAGÉS ===== */
+    .spd-role{padding:6px 8px;border-radius:8px;border:1px solid var(--b);background:var(--s2);color:var(--t);font-size:12px;font-weight:600;-webkit-appearance:none;appearance:none}
+    .spd-badge{font-size:11px;font-weight:600;padding:4px 9px;border-radius:10px;background:var(--pl);color:var(--pa)}
   </style>
 </head>
 <body>
@@ -471,6 +485,16 @@
     <button class="sidemenu-item" onclick="openMenuPage('export')">
       <div class="si-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="#16402F" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v9.5"/><path d="M7.8 9.3 12 13.5l4.2-4.2"/><path d="M4.5 15.5v2.2a1.8 1.8 0 0 0 1.8 1.8h11.4a1.8 1.8 0 0 0 1.8-1.8v-2.2"/></svg></div>
       <div><div class="si-label">Export Excel</div><div class="si-sub">Transactions sur une période</div></div>
+    </button>
+    <div class="sidemenu-divider"></div>
+    <div class="sidemenu-section">Partage</div>
+    <button class="sidemenu-item" onclick="openMenuPage('friends')">
+      <div class="si-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="#16402F" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M16 5.2a3 3 0 0 1 0 5.6"/><path d="M17.5 13.5a5.5 5.5 0 0 1 3 5"/></svg></div>
+      <div><div class="si-label">Amis</div><div class="si-sub">Ajouter et gérer</div></div>
+    </button>
+    <button class="sidemenu-item" onclick="openMenuPage('spaces')">
+      <div class="si-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="#16402F" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 21 8l-9 4.5L3 8z"/><path d="M3 12l9 4.5L21 12"/><path d="M3 16l9 4.5L21 16"/></svg></div>
+      <div><div class="si-label">Budgets partagés</div><div class="si-sub">Espaces communs</div></div>
     </button>
     <div class="sidemenu-divider"></div>
     <div class="sidemenu-section">Paramètres</div>
@@ -781,6 +805,26 @@
       <div class="card"><div id="cmp-list"></div></div>
     </div>
 
+    <!-- AMIS -->
+    <div class="page" id="page-friends">
+      <div style="font-size:18px;font-weight:600;margin-bottom:4px;display:flex;align-items:center;gap:7px;"><svg class="tic" viewBox="0 0 24 24" fill="none" stroke="var(--pa)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M16 5.2a3 3 0 0 1 0 5.6"/><path d="M17.5 13.5a5.5 5.5 0 0 1 3 5"/></svg><span>Amis</span></div>
+      <div style="font-size:13px;color:var(--t2);margin-bottom:14px;">Ajoute des amis pour créer ensuite un budget commun.</div>
+      <div class="card">
+        <div class="sec-title">Ajouter un ami</div>
+        <div class="fgroup"><label class="flabel">Email de l'ami</label><input type="email" id="friend-email" autocomplete="off" placeholder="ami@email.com"/></div>
+        <button class="btn btn-p" onclick="addFriendByEmail()">Envoyer une demande</button>
+        <div style="font-size:12px;color:var(--t2);margin-top:12px;">Ton email (à communiquer à tes amis) : <b id="friend-my-email">—</b></div>
+      </div>
+      <div id="friends-content"></div>
+    </div>
+
+    <!-- BUDGETS PARTAGÉS -->
+    <div class="page" id="page-spaces">
+      <div class="row-between" style="margin-bottom:4px;"><div style="font-size:18px;font-weight:600;display:flex;align-items:center;gap:7px;"><svg class="tic" viewBox="0 0 24 24" fill="none" stroke="var(--pa)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 21 8l-9 4.5L3 8z"/><path d="M3 12l9 4.5L21 12"/><path d="M3 16l9 4.5L21 16"/></svg><span>Budgets partagés</span></div><button class="btn btn-p btn-sm" onclick="openCreateSpace()">+ Créer</button></div>
+      <div style="font-size:13px;color:var(--t2);margin-bottom:14px;">Un espace commun, séparé de ton perso. Invite tes amis et attribue un rôle.</div>
+      <div id="spaces-content"></div>
+    </div>
+
     <!-- PROFIL -->
     <div class="page" id="page-profile">
       <div style="font-size:18px;font-weight:600;margin-bottom:4px;display:flex;align-items:center;gap:7px;"><svg class="tic" viewBox="0 0 24 24" fill="none" stroke="var(--pa)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.2" r="3.6"/><path d="M5.5 19.5a6.5 6.5 0 0 1 13 0"/></svg><span>Mon profil</span></div>
@@ -972,6 +1016,26 @@
     <div class="fgroup"><label class="flabel">Solde actuel (€)</label><input type="number" id="am-balance" step="0.01" inputmode="decimal" placeholder="0,00"/><div style="font-size:12px;color:var(--t2);line-height:1.4;margin-top:6px;" id="am-balance-hint">Le solde réel du compte aujourd’hui. Les opérations que tu lui affectes le feront évoluer.</div></div>
     <div class="btn-row"><button class="btn btn-ghost" onclick="closeModal('account-modal')">Annuler</button><button class="btn btn-p" onclick="saveAccount()">Enregistrer</button></div>
     <button class="btn btn-danger" id="acm-del" style="display:none;margin-top:8px;" onclick="deleteAccount()">🗑 Supprimer</button>
+  </div>
+</div>
+
+<!-- CREATE SPACE MODAL -->
+<div class="modal-ov" id="space-create-modal" onclick="maybeClose('space-create-modal',event)">
+  <div class="modal-box">
+    <div class="modal-title">Nouvel espace partagé</div>
+    <div class="modal-sub">Un budget commun, séparé de ton budget perso.</div>
+    <div class="fgroup"><label class="flabel">Nom de l'espace</label><input type="text" id="space-name" placeholder="Ex : Colocation, Couple, Vacances…"/></div>
+    <div class="btn-row"><button class="btn btn-ghost" onclick="closeModal('space-create-modal')">Annuler</button><button class="btn btn-p" onclick="createSpace()">Créer</button></div>
+  </div>
+</div>
+
+<!-- SPACE DETAIL MODAL -->
+<div class="modal-ov" id="space-detail-modal" onclick="maybeClose('space-detail-modal',event)">
+  <div class="modal-box">
+    <div class="modal-title" id="spd-title">Espace</div>
+    <div class="modal-sub" id="spd-sub"></div>
+    <div id="spd-content"></div>
+    <div class="btn-row" style="margin-top:16px;"><button class="btn btn-ghost" onclick="closeModal('space-detail-modal')">Fermer</button></div>
   </div>
 </div>
 
@@ -1231,6 +1295,8 @@ const MONTHS_FR=['Janv.','Févr.','Mars','Avr.','Mai','Juin','Juil.','Août','Se
 let currentUser = null;
 let TX = [], CATS = [], RECUR = [], ACCOUNTS = [];
 let accountsEnabled = false;
+let FRIENDS = []; let friendsEnabled = false;
+let SPACES = []; let spacesEnabled = false; let curSpaceId = null;
 const NOW = new Date();
 let vY = NOW.getFullYear(), vM = NOW.getMonth();
 
@@ -2799,6 +2865,213 @@ async function deleteAccount(){
   renderAccounts();buildAccountSel('a-account');updateAll();
 }
 
+// -- AMIS (fondation du partage) --
+// Relations d'amitié via une table friendships + 2 fonctions RPC Supabase
+// (recherche par email, liste des amis). Dégrade proprement si le SQL n'est
+// pas encore en place (friendsEnabled=false).
+function friendInitial(name,email){var s=(name||email||'?').trim();return s?s.charAt(0).toUpperCase():'?';}
+async function loadFriends(){
+  var me=document.getElementById('friend-my-email');if(me)me.textContent=(currentUser&&currentUser.email)||'—';
+  try{
+    var res=await supa.rpc('my_friends');
+    if(res.error){friendsEnabled=false;FRIENDS=[];}
+    else{friendsEnabled=true;FRIENDS=res.data||[];}
+  }catch(e){friendsEnabled=false;FRIENDS=[];}
+  renderFriendsPage();
+}
+function friendRow(f,actions){
+  return `<div class="friend-row"><div class="friend-av">${friendInitial(f.name,f.email)}</div><div class="friend-info"><div class="friend-name">${f.name||'—'}</div><div class="friend-mail">${f.email||''}</div></div><div class="friend-actions">${actions}</div></div>`;
+}
+function renderFriendsPage(){
+  var box=document.getElementById('friends-content');
+  if(!box)return;
+  if(!friendsEnabled){
+    box.innerHTML=`<div class="info-card" style="background:var(--al);"><div style="font-size:13px;font-weight:600;color:var(--aink);">Amis à activer</div><div style="font-size:12px;color:var(--aink);line-height:1.5;margin-top:4px;">Lance une fois les requêtes SQL fournies dans Supabase pour activer les amis et le partage.</div></div>`;
+    return;
+  }
+  var incoming=FRIENDS.filter(function(f){return f.status==='pending'&&f.incoming;});
+  var outgoing=FRIENDS.filter(function(f){return f.status==='pending'&&!f.incoming;});
+  var accepted=FRIENDS.filter(function(f){return f.status==='accepted';});
+  var out='';
+  if(incoming.length){
+    out+='<div class="card"><div class="sec-title">Demandes reçues</div>';
+    incoming.forEach(function(f){out+=friendRow(f,`<button class="friend-btn acc" onclick="acceptFriend('${f.other_id}')">Accepter</button><button class="friend-btn dec" onclick="removeFriend('${f.other_id}')">Refuser</button>`);});
+    out+='</div>';
+  }
+  out+='<div class="card"><div class="sec-title">Mes amis'+(accepted.length?' ('+accepted.length+')':'')+'</div>';
+  if(accepted.length){accepted.forEach(function(f){out+=friendRow(f,`<button class="friend-btn dec" onclick="removeFriend('${f.other_id}')">Retirer</button>`);});}
+  else{out+=`<div class="empty" style="padding:16px 0;"><div class="ei">👋</div>Aucun ami pour l’instant.</div>`;}
+  out+='</div>';
+  if(outgoing.length){
+    out+='<div class="card"><div class="sec-title">Demandes envoyées</div>';
+    outgoing.forEach(function(f){out+=friendRow(f,`<button class="friend-btn dec" onclick="removeFriend('${f.other_id}')">Annuler</button>`);});
+    out+='</div>';
+  }
+  box.innerHTML=out;
+}
+async function addFriendByEmail(){
+  var email=document.getElementById('friend-email').value.trim();
+  if(!email){toast('(!) Saisis un email');return;}
+  if(!friendsEnabled){toast(`(!) Active d'abord les amis (SQL)`);return;}
+  if(currentUser&&email.toLowerCase()===((currentUser.email)||'').toLowerCase()){toast(`(!) C'est ton propre email`);return;}
+  setSyncState('syncing');
+  var f=await supa.rpc('find_user_by_email',{p_email:email});
+  if(f.error){setSyncState('error');toast('(!) '+f.error.message);return;}
+  var otherId=f.data;
+  if(!otherId){setSyncState('ok');toast('(!) Aucun compte Carat avec cet email');return;}
+  var existing=FRIENDS.find(function(x){return String(x.other_id)===String(otherId);});
+  if(existing){
+    setSyncState('ok');
+    if(existing.status==='accepted')toast('(!) Vous êtes déjà amis');
+    else if(existing.incoming)toast(`(!) Cette personne t’a déjà invité — accepte sa demande`);
+    else toast('(!) Demande déjà envoyée');
+    return;
+  }
+  var ins=await supa.from('friendships').insert({requester:currentUser.id,addressee:otherId,status:'pending'});
+  if(ins.error){setSyncState('error');toast((ins.error.message||'').indexOf('duplicate')>=0?'(!) Demande déjà existante':'(!) '+ins.error.message);}
+  else{setSyncState('ok');toast('OK Demande envoyée');document.getElementById('friend-email').value='';}
+  loadFriends();
+}
+async function acceptFriend(otherId){
+  setSyncState('syncing');
+  var r=await supa.from('friendships').update({status:'accepted'}).eq('requester',otherId).eq('addressee',currentUser.id);
+  if(r.error){setSyncState('error');toast('(!) '+r.error.message);}else{setSyncState('ok');toast('OK Ami ajouté');}
+  loadFriends();
+}
+async function removeFriend(otherId){
+  setSyncState('syncing');
+  await supa.from('friendships').delete().eq('requester',currentUser.id).eq('addressee',otherId);
+  await supa.from('friendships').delete().eq('requester',otherId).eq('addressee',currentUser.id);
+  setSyncState('ok');toast('Relation supprimée');
+  loadFriends();
+}
+
+// -- BUDGETS PARTAGÉS (espaces + membres + rôles) --
+// Socle : espaces, membres, rôles (propriétaire/éditeur/lecteur). Purement
+// additif : l'affectation des opérations à un espace viendra à l'étape suivante.
+var SPACE_SVG='<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="var(--pa)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 21 8l-9 4.5L3 8z"/><path d="M3 12l9 4.5L21 12"/><path d="M3 16l9 4.5L21 16"/></svg>';
+function roleLabel(r,isOwner){return isOwner?'Propriétaire':(r==='viewer'?'Lecteur':'Éditeur');}
+async function loadSpaces(){
+  try{
+    var res=await supa.rpc('my_spaces');
+    if(res.error){spacesEnabled=false;SPACES=[];}
+    else{spacesEnabled=true;SPACES=res.data||[];}
+  }catch(e){spacesEnabled=false;SPACES=[];}
+  renderSpacesPage();
+}
+function renderSpacesPage(){
+  var box=document.getElementById('spaces-content');if(!box)return;
+  if(!spacesEnabled){
+    box.innerHTML=`<div class="info-card" style="background:var(--al);"><div style="font-size:13px;font-weight:600;color:var(--aink);">Budgets partagés à activer</div><div style="font-size:12px;color:var(--aink);line-height:1.5;margin-top:4px;">Lance une fois les requêtes SQL fournies dans Supabase pour activer les espaces partagés.</div></div>`;
+    return;
+  }
+  if(!SPACES.length){box.innerHTML=`<div class="empty" style="padding:24px 0;"><div class="ei">👥</div>Aucun espace pour l’instant. Crée ton premier budget commun.</div>`;return;}
+  var out='<div class="card">';
+  SPACES.forEach(function(s){
+    var owner=s.owner_id===(currentUser&&currentUser.id);
+    out+=`<div class="recur-item" style="cursor:pointer;" onclick="openSpaceDetail('${s.id}')"><div class="recur-ico" style="background:var(--pl);">${SPACE_SVG}</div><div class="recur-info"><div class="recur-name">${s.name}</div><div class="recur-meta">${s.member_count} membre${s.member_count>1?'s':''} · ${roleLabel(s.my_role,owner)}</div></div><div style="color:var(--t2);font-size:20px;flex-shrink:0;">›</div></div>`;
+  });
+  out+='</div>';
+  box.innerHTML=out;
+}
+function openCreateSpace(){
+  if(!spacesEnabled){toast(`(!) Active d'abord les espaces (SQL)`);return;}
+  document.getElementById('space-name').value='';
+  document.getElementById('space-create-modal').classList.add('open');
+  setTimeout(function(){document.getElementById('space-name').focus();},150);
+}
+async function createSpace(){
+  var name=document.getElementById('space-name').value.trim();
+  if(!name){toast('(!) Nom manquant');return;}
+  setSyncState('syncing');
+  var s=await supa.from('spaces').insert({name:name,owner_id:currentUser.id}).select().single();
+  if(s.error||!s.data){setSyncState('error');toast('(!) '+(s.error?s.error.message:'Erreur'));return;}
+  var m=await supa.from('space_members').insert({space_id:s.data.id,user_id:currentUser.id,role:'owner'});
+  if(m.error){setSyncState('error');toast('(!) '+m.error.message);}else{setSyncState('ok');toast('OK Espace créé');}
+  closeModal('space-create-modal');
+  loadSpaces();
+}
+async function openSpaceDetail(id){
+  curSpaceId=id;
+  var sp=SPACES.find(function(x){return String(x.id)===String(id);});
+  document.getElementById('spd-title').textContent=sp?sp.name:'Espace';
+  document.getElementById('spd-sub').textContent='Chargement…';
+  document.getElementById('spd-content').innerHTML='';
+  document.getElementById('space-detail-modal').classList.add('open');
+  await renderSpaceDetail();
+}
+async function renderSpaceDetail(){
+  var id=curSpaceId;
+  var sp=SPACES.find(function(x){return String(x.id)===String(id);});
+  var isOwner=sp&&sp.owner_id===(currentUser&&currentUser.id);
+  var mem=await supa.rpc('space_members_detail',{p_space:id});
+  var members=(mem&&mem.data)||[];
+  document.getElementById('spd-sub').textContent=members.length+' membre'+(members.length>1?'s':'');
+  var out='<div class="card" style="margin:0 0 12px;"><div class="sec-title">Membres</div>';
+  members.forEach(function(m){
+    var me=m.user_id===(currentUser&&currentUser.id);
+    var ctrl;
+    if(isOwner&&!m.is_owner){
+      ctrl=`<select class="spd-role" onchange="changeMemberRole('${m.user_id}',this.value)"><option value="editor"${m.role!=='viewer'?' selected':''}>Éditeur</option><option value="viewer"${m.role==='viewer'?' selected':''}>Lecteur</option></select><button class="friend-btn dec" onclick="removeMember('${m.user_id}')">Retirer</button>`;
+    }else{
+      ctrl=`<span class="spd-badge">${roleLabel(m.role,m.is_owner)}</span>`;
+    }
+    out+=`<div class="friend-row"><div class="friend-av">${friendInitial(m.name,m.email)}</div><div class="friend-info"><div class="friend-name">${m.name}${me?' (toi)':''}</div><div class="friend-mail">${m.email||''}</div></div><div class="friend-actions">${ctrl}</div></div>`;
+  });
+  out+='</div>';
+  if(isOwner){
+    var fr=await supa.rpc('my_friends');
+    var accepted=((fr&&fr.data)||[]).filter(function(f){return f.status==='accepted';});
+    var memIds={};members.forEach(function(m){memIds[String(m.user_id)]=1;});
+    var invitables=accepted.filter(function(f){return !memIds[String(f.other_id)];});
+    out+='<div class="card" style="margin:0 0 12px;"><div class="sec-title">Inviter un ami</div>';
+    if(!accepted.length){out+=`<div style="font-size:13px;color:var(--t2);">Ajoute d’abord des amis dans la page Amis.</div>`;}
+    else if(!invitables.length){out+=`<div style="font-size:13px;color:var(--t2);">Tous tes amis sont déjà dans l’espace.</div>`;}
+    else{
+      out+='<div class="fgroup"><label class="flabel">Ami</label><select id="spd-invite-friend">';
+      invitables.forEach(function(f){out+=`<option value="${f.other_id}">${(f.name||f.email)}</option>`;});
+      out+='</select></div><div class="fgroup"><label class="flabel">Rôle</label><select id="spd-invite-role"><option value="editor">Éditeur (ajoute/modifie)</option><option value="viewer">Lecteur (consultation)</option></select></div><button class="btn btn-p" onclick="inviteFriendToSpace()">Inviter</button>';
+    }
+    out+='</div>';
+    out+=`<button class="btn btn-danger" onclick="deleteSpace()">🗑 Supprimer l’espace</button>`;
+  }else{
+    out+=`<button class="btn btn-danger" onclick="leaveSpace()">Quitter l’espace</button>`;
+  }
+  document.getElementById('spd-content').innerHTML=out;
+}
+async function inviteFriendToSpace(){
+  var sel=document.getElementById('spd-invite-friend');if(!sel)return;
+  var fid=sel.value;var role=document.getElementById('spd-invite-role').value;
+  if(!fid)return;
+  setSyncState('syncing');
+  var r=await supa.from('space_members').insert({space_id:curSpaceId,user_id:fid,role:role});
+  if(r.error){setSyncState('error');toast((r.error.message||'').indexOf('duplicate')>=0?'(!) Déjà membre':'(!) '+r.error.message);}else{setSyncState('ok');toast('OK Ami invité');}
+  await renderSpaceDetail();loadSpaces();
+}
+async function changeMemberRole(userId,role){
+  setSyncState('syncing');
+  var r=await supa.from('space_members').update({role:role}).eq('space_id',curSpaceId).eq('user_id',userId);
+  if(r.error){setSyncState('error');toast('(!) '+r.error.message);}else{setSyncState('ok');toast('OK Rôle mis à jour');}
+}
+async function removeMember(userId){
+  setSyncState('syncing');
+  var r=await supa.from('space_members').delete().eq('space_id',curSpaceId).eq('user_id',userId);
+  if(r.error){setSyncState('error');toast('(!) '+r.error.message);}else{setSyncState('ok');toast('Membre retiré');}
+  await renderSpaceDetail();loadSpaces();
+}
+async function deleteSpace(){
+  setSyncState('syncing');
+  var r=await supa.from('spaces').delete().eq('id',curSpaceId);
+  if(r.error){setSyncState('error');toast('(!) '+r.error.message);}else{setSyncState('ok');toast('🗑 Espace supprimé');}
+  closeModal('space-detail-modal');loadSpaces();
+}
+async function leaveSpace(){
+  setSyncState('syncing');
+  var r=await supa.from('space_members').delete().eq('space_id',curSpaceId).eq('user_id',currentUser.id);
+  if(r.error){setSyncState('error');toast('(!) '+r.error.message);}else{setSyncState('ok');toast('Tu as quitté l’espace');}
+  closeModal('space-detail-modal');loadSpaces();
+}
+
 // -- PAGE NAV --
 function updateAll(){updateHome();updateBudget();refreshDupHint()}
 function goPage(name){
@@ -2892,6 +3165,8 @@ function openMenuPage(name){
   if(name==='compare'){updateComparePage();}
   if(name==='export'){setupExportPage();}
   if(name==='profile'){updateProfilePage();}
+  if(name==='friends')loadFriends();
+  if(name==='spaces')loadSpaces();
   window.scrollTo(0,0);
 }
 
