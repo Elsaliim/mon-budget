@@ -448,6 +448,23 @@
     /* ===== BUDGETS PARTAGÉS ===== */
     .spd-role{padding:6px 8px;border-radius:8px;border:1px solid var(--b);background:var(--s2);color:var(--t);font-size:12px;font-weight:600;-webkit-appearance:none;appearance:none}
     .spd-badge{font-size:11px;font-weight:600;padding:4px 9px;border-radius:10px;background:var(--pl);color:var(--pa)}
+    /* ===== SÉLECTEUR D'ESPACE (2b) ===== */
+    .space-switch{display:none;align-items:center;gap:8px;margin:0 16px 8px;padding:10px 12px;background:var(--s2);border:1px solid var(--b);border-radius:10px;cursor:pointer;-webkit-tap-highlight-color:transparent;width:calc(100% - 32px)}
+    .space-switch-l{font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+    .space-switch-v{font-size:14px;color:var(--t);font-weight:600;flex:1;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .space-switch-c{color:var(--t2);font-size:12px}
+    .space-banner{display:none;align-items:center;justify-content:space-between;gap:10px;background:linear-gradient(135deg,var(--pd),var(--p));color:#fff;border-radius:var(--rad);padding:10px 14px;margin-bottom:14px;font-size:13px}
+    .space-banner b{font-weight:700}
+    .space-banner button{flex-shrink:0;background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent}
+    .space-pick{display:flex;align-items:center;gap:11px;padding:11px 12px;border-radius:10px;cursor:pointer;-webkit-tap-highlight-color:transparent;border:1px solid transparent}
+    .space-pick:active{background:var(--s2)}
+    .space-pick.on{border-color:var(--pa);background:var(--pl)}
+    .space-pick-ic{width:38px;height:38px;border-radius:50%;background:var(--s2);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .space-pick-info{flex:1;min-width:0}
+    .space-pick-name{font-size:14px;font-weight:600;color:var(--t)}
+    .space-pick-sub{font-size:12px;color:var(--t2)}
+    .space-pick-check{color:var(--pa);font-weight:700;font-size:16px}
+    .role-viewer #nav-add,.role-viewer #side-nav-add{opacity:.4;pointer-events:none}
   </style>
 </head>
 <body>
@@ -461,6 +478,11 @@
         <div class="su-email" id="sm-email">—</div>
       </div>
     </div>
+    <button class="space-switch" id="space-switch" onclick="openSpacePicker()">
+      <span class="space-switch-l">Espace</span>
+      <span class="space-switch-v" id="space-switch-val">Perso</span>
+      <span class="space-switch-c">▾</span>
+    </button>
     <div class="sidemenu-section desktop-only">Navigation</div>
     <button class="side-nav-btn desktop-only active" id="side-nav-home" onclick="goPage('home')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12L12 4l9 8"/><path d="M5 10v9a1 1 0 001 1h4v-4h4v4h4a1 1 0 001-1v-9"/></svg>Accueil</button>
     <button class="side-nav-btn desktop-only" id="side-nav-add" onclick="goPage('add')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>Ajouter</button>
@@ -583,6 +605,7 @@
   </div>
 
   <div class="content">
+    <div id="space-banner" class="space-banner"></div>
     <!-- BANNIÈRE INSTALLATION (navigateur seulement) -->
     <div class="install-banner" id="install-banner">
       <div class="ib-icon">⬇️</div>
@@ -1019,6 +1042,16 @@
   </div>
 </div>
 
+<!-- SPACE PICKER MODAL -->
+<div class="modal-ov" id="space-picker-modal" onclick="maybeClose('space-picker-modal',event)">
+  <div class="modal-box">
+    <div class="modal-title">Changer d'espace</div>
+    <div class="modal-sub">Ton budget perso, ou un espace partagé.</div>
+    <div id="space-picker-list"></div>
+    <div class="btn-row" style="margin-top:14px;"><button class="btn btn-ghost" onclick="closeModal('space-picker-modal')">Fermer</button></div>
+  </div>
+</div>
+
 <!-- CREATE SPACE MODAL -->
 <div class="modal-ov" id="space-create-modal" onclick="maybeClose('space-create-modal',event)">
   <div class="modal-box">
@@ -1297,6 +1330,7 @@ let TX = [], CATS = [], RECUR = [], ACCOUNTS = [];
 let accountsEnabled = false;
 let FRIENDS = []; let friendsEnabled = false;
 let SPACES = []; let spacesEnabled = false; let curSpaceId = null;
+let activeSpace = null; let spaceColsEnabled = false; let spaceColsProbed = false;
 const NOW = new Date();
 let vY = NOW.getFullYear(), vM = NOW.getMonth();
 
@@ -1468,6 +1502,7 @@ function loadFromCache(){
 }
 
 function saveToCache(){
+  if(activeSpace)return;
   try{
     const uid=currentUser.id;
     localStorage.setItem('cache_tx_'+uid,JSON.stringify(TX));
@@ -1504,6 +1539,7 @@ function showApp(){
   buildCatSel('a-cat');
   buildCatSel('rm-cat');
   buildAccountSel('a-account');
+  updateSpaceUI();
   updateAll();
 }
 
@@ -1511,12 +1547,15 @@ function showApp(){
 async function loadAllData(){
   setSyncState('syncing');
   try{
+    await ensureSpaceCols();
+    if(spaceColsEnabled){await loadSpacesQuiet();validateActiveSpace();}else{activeSpace=null;}
     const uid=currentUser.id;
+    const scope=function(q){return activeSpace?q.eq('space_id',activeSpace):(spaceColsEnabled?q.eq('user_id',uid).is('space_id',null):q.eq('user_id',uid));};
     const[txRes,catRes,recurRes,accRes]=await Promise.all([
-      supa.from('transactions').select('*').eq('user_id',uid).order('date',{ascending:false}),
-      supa.from('categories').select('*').eq('user_id',uid).order('created_at'),
-      supa.from('recurrents').select('*').eq('user_id',uid),
-      supa.from('accounts').select('*').eq('user_id',uid).order('created_at'),
+      scope(supa.from('transactions').select('*')).order('date',{ascending:false}),
+      scope(supa.from('categories').select('*')).order('created_at'),
+      scope(supa.from('recurrents').select('*')),
+      scope(supa.from('accounts').select('*')).order('created_at'),
     ]);
     TX=txRes.data||[];
     CATS=catRes.data&&catRes.data.length>0?catRes.data:await seedCategories();
@@ -1524,15 +1563,17 @@ async function loadAllData(){
     accountsEnabled=!accRes.error;
     ACCOUNTS=accRes.data||[];
 
-    // Migrate localStorage if exists
-    await migrateFromLocalStorage();
+    if(!activeSpace)await migrateFromLocalStorage();
+    updateSpaceUI();
     setSyncState('ok');
   }catch(e){setSyncState('error');toast('(!) Erreur de connexion')}
 }
 
 async function seedCategories(){
+  if(activeSpace&&!canWrite())return [];
   const uid=currentUser.id;
-  const toInsert=DEF_CATS.map(c=>({...c,user_id:uid}));
+  const extra=spaceColsEnabled?{space_id:activeSpace}:{};
+  const toInsert=DEF_CATS.map(c=>Object.assign({},c,{user_id:uid},extra));
   const{data}=await supa.from('categories').insert(toInsert).select();
   return data||DEF_CATS;
 }
@@ -1561,7 +1602,7 @@ async function migrateFromLocalStorage(){
 // -- DB HELPERS --
 async function dbAddTx(tx){
   setSyncState('syncing');
-  const{data,error}=await supa.from('transactions').insert({user_id:currentUser.id,...tx}).select().single();
+  const{data,error}=await supa.from('transactions').insert({user_id:currentUser.id,...tx,...spaceInsert()}).select().single();
   if(!error&&data){TX.unshift(data);setSyncState('ok');}else{setSyncState('error');}
   return data;
 }
@@ -1576,7 +1617,7 @@ async function dbDeleteTx(id){
   if(!error){TX=TX.filter(t=>t.id!==id);setSyncState('ok');}else setSyncState('error');
 }
 async function dbAddRecur(r){
-  const{data}=await supa.from('recurrents').insert({user_id:currentUser.id,...r}).select().single();
+  const{data}=await supa.from('recurrents').insert({user_id:currentUser.id,...r,...spaceInsert()}).select().single();
   if(data)RECUR.push(data);return data;
 }
 async function dbUpdateRecur(id,fields){
@@ -1593,10 +1634,10 @@ async function dbUpsertCat(cat){
   // Upsert par ID quand la catégorie en a un (évite de créer un doublon lors
   // d'un renommage). Sinon insertion simple, et on récupère l'id généré.
   if(cat.id){
-    const{error}=await supa.from('categories').upsert({user_id:currentUser.id,...cat},{onConflict:'id'});
+    const{error}=await supa.from('categories').upsert({user_id:currentUser.id,...cat,...spaceInsert()},{onConflict:'id'});
     if(error)console.warn('upsert cat:',error.message);
   }else{
-    const{data,error}=await supa.from('categories').insert({user_id:currentUser.id,...cat}).select().single();
+    const{data,error}=await supa.from('categories').insert({user_id:currentUser.id,...cat,...spaceInsert()}).select().single();
     if(error){console.warn('insert cat:',error.message);return;}
     if(data&&data.id)cat.id=data.id;
   }
@@ -1669,6 +1710,7 @@ function recurShift(r){
 // Liste des mois de versement explicitement supprimés par l'utilisateur pour ce récurrent
 function recurSkips(r){return Array.isArray(r.skipped_months)?r.skipped_months:[]}
 async function applyRecur(){
+  if(activeSpace&&!canWrite())return;
   const key=curKey(); // mois budgétaire affiché, ex 2026-02
   for(const r of RECUR){
     const shift=recurShift(r);
@@ -1866,6 +1908,7 @@ function setType(t){
 }
 
 async function addTransaction(){
+  if(!canWrite()){toast('(!) Lecture seule dans cet espace');return;}
   const amount=parseFloat(document.getElementById('a-amount').value);
   const desc=document.getElementById('a-desc').value.trim();
   const catVal=document.getElementById('a-cat').value;
@@ -2216,8 +2259,11 @@ async function saveCat(){
     // et seraient mal rattachés au prochain chargement.
     if(name!==oldName){
       try{
-        await supa.from('transactions').update({cat:name}).eq('user_id',currentUser.id).eq('cat',oldName);
-        await supa.from('recurrents').update({cat:name}).eq('user_id',currentUser.id).eq('cat',oldName);
+        var _tq=supa.from('transactions').update({cat:name}).eq('cat',oldName);
+        var _rq=supa.from('recurrents').update({cat:name}).eq('cat',oldName);
+        if(activeSpace){_tq=_tq.eq('space_id',activeSpace);_rq=_rq.eq('space_id',activeSpace);}
+        else{_tq=_tq.eq('user_id',currentUser.id);_rq=_rq.eq('user_id',currentUser.id);}
+        await _tq;await _rq;
       }catch(e){console.warn('Propagation renommage:',e.message);}
     }
   }else{
@@ -2780,7 +2826,7 @@ function accountBalance(acc){
 }
 async function dbAddAccount(a){
   setSyncState('syncing');
-  var res=await supa.from('accounts').insert(Object.assign({user_id:currentUser.id},a)).select().single();
+  var res=await supa.from('accounts').insert(Object.assign({user_id:currentUser.id},a,spaceInsert())).select().single();
   if(!res.error&&res.data){ACCOUNTS.push(res.data);setSyncState('ok');}else{setSyncState('error');toast('(!) '+(res.error?res.error.message:'Erreur'));}
   saveToCache();return res.data;
 }
@@ -3072,9 +3118,75 @@ async function leaveSpace(){
   closeModal('space-detail-modal');loadSpaces();
 }
 
+// -- ESPACE ACTIF (2b : perso vs partagé) --
+// Tout est neutralisé tant que les colonnes space_id n'existent pas : l'app
+// reste alors strictement identique au mode perso actuel.
+async function ensureSpaceCols(){
+  if(spaceColsProbed)return;
+  spaceColsProbed=true;
+  try{var r=await supa.from('transactions').select('space_id').limit(1);spaceColsEnabled=!r.error;}catch(e){spaceColsEnabled=false;}
+}
+async function loadSpacesQuiet(){
+  try{var res=await supa.rpc('my_spaces');if(res.error){spacesEnabled=false;SPACES=[];}else{spacesEnabled=true;SPACES=res.data||[];}}catch(e){spacesEnabled=false;SPACES=[];}
+}
+function validateActiveSpace(){
+  if(activeSpace&&!SPACES.find(function(x){return String(x.id)===String(activeSpace);}))activeSpace=null;
+}
+function myActiveRole(){
+  if(!activeSpace)return 'owner';
+  var s=SPACES.find(function(x){return String(x.id)===String(activeSpace);});
+  if(!s)return 'viewer';
+  return s.owner_id===(currentUser&&currentUser.id)?'owner':(s.my_role||'viewer');
+}
+function canWrite(){return !activeSpace||myActiveRole()!=='viewer';}
+function spaceInsert(){return spaceColsEnabled?{space_id:activeSpace}:{};}
+function updateSpaceUI(){
+  var show=spaceColsEnabled&&SPACES.length>0;
+  var sw=document.getElementById('space-switch');if(sw)sw.style.display=show?'flex':'none';
+  var sp=activeSpace?SPACES.find(function(x){return String(x.id)===String(activeSpace);}):null;
+  var val=document.getElementById('space-switch-val');if(val)val.textContent=sp?sp.name:'Perso';
+  var ban=document.getElementById('space-banner');
+  if(ban){
+    if(sp){var role=roleLabel(sp.my_role,sp.owner_id===(currentUser&&currentUser.id));ban.style.display='flex';ban.innerHTML='<span>👥 Espace : <b>'+sp.name+'</b> · '+role+'</span><button onclick="switchSpace(null)">Revenir au perso</button>';}
+    else{ban.style.display='none';ban.innerHTML='';}
+  }
+  applyRolePermissions();
+}
+function applyRolePermissions(){
+  var viewer=!!(activeSpace&&!canWrite());
+  document.body.classList.toggle('role-viewer',viewer);
+}
+function openSpacePicker(){renderSpacePicker();document.getElementById('space-picker-modal').classList.add('open');}
+function renderSpacePicker(){
+  var box=document.getElementById('space-picker-list');if(!box)return;
+  var pOn=!activeSpace;
+  var out=`<div class="space-pick${pOn?' on':''}" onclick="switchSpace(null)"><div class="space-pick-ic">${catSVG('wallet','var(--pa)',20)}</div><div class="space-pick-info"><div class="space-pick-name">Perso</div><div class="space-pick-sub">Ton budget personnel</div></div>${pOn?'<span class="space-pick-check">✓</span>':''}</div>`;
+  SPACES.forEach(function(s){
+    var on=String(activeSpace)===String(s.id);
+    var owner=s.owner_id===(currentUser&&currentUser.id);
+    out+=`<div class="space-pick${on?' on':''}" onclick="switchSpace('${s.id}')"><div class="space-pick-ic">${SPACE_SVG}</div><div class="space-pick-info"><div class="space-pick-name">${s.name}</div><div class="space-pick-sub">${s.member_count} membre${s.member_count>1?'s':''} · ${roleLabel(s.my_role,owner)}</div></div>${on?'<span class="space-pick-check">✓</span>':''}</div>`;
+  });
+  box.innerHTML=out;
+}
+async function switchSpace(id){
+  if(id&&!spaceColsEnabled){toast('(!) Colonnes d’espace non activées (SQL 2b)');return;}
+  activeSpace=id||null;
+  closeModal('space-picker-modal');closeMenu();
+  setSyncState('syncing');
+  await loadAllData();
+  await applyRecur();
+  saveToCache();
+  updateAll();buildCatSel('a-cat');buildCatSel('rm-cat');buildAccountSel('a-account');renderAccounts();
+  updateSpaceUI();
+  setSyncState('ok');
+  goPage('home');
+  toast(activeSpace?'Espace ouvert':'Retour au perso');
+}
+
 // -- PAGE NAV --
 function updateAll(){updateHome();updateBudget();refreshDupHint()}
 function goPage(name){
+  if(name==='add'&&!canWrite()){toast('(!) Lecture seule dans cet espace');return;}
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('page-'+name).classList.add('active');
