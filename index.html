@@ -1025,6 +1025,21 @@
   </div>
 </div>
 
+<!-- TRANSFER MODAL -->
+<div class="modal-ov" id="transfer-modal" onclick="maybeClose('transfer-modal',event)">
+  <div class="modal-box">
+    <div class="modal-title" id="trm-title">Virement interne</div>
+    <div class="modal-sub">Entre deux de tes comptes. Neutre pour le budget : ni dépense, ni revenu.</div>
+    <div class="fgroup"><label class="flabel">Depuis</label><select id="trm-from"></select></div>
+    <div class="fgroup"><label class="flabel">Vers</label><select id="trm-to"></select></div>
+    <div class="fgroup"><label class="flabel">Montant (€)</label><input type="number" id="trm-amount" min="0" step="0.01" inputmode="decimal" placeholder="0,00"/></div>
+    <div class="fgroup"><label class="flabel">Libellé (optionnel)</label><input type="text" id="trm-desc" placeholder="Ex : Épargne du mois"/></div>
+    <div class="fgroup"><label class="flabel">Date</label><input type="date" id="trm-date"/></div>
+    <div class="btn-row"><button class="btn btn-ghost" onclick="closeModal('transfer-modal')">Annuler</button><button class="btn btn-p" onclick="saveTransfer()">Valider</button></div>
+    <button class="btn btn-danger" id="trm-del" style="display:none;margin-top:8px;" onclick="deleteTransfer()">🗑 Supprimer</button>
+  </div>
+</div>
+
 <!-- ACCOUNT MODAL -->
 <div class="modal-ov" id="account-modal" onclick="maybeClose('account-modal',event)">
   <div class="modal-box">
@@ -1035,7 +1050,7 @@
       <div style="flex:1;"><div class="flabel">Nom</div><input type="text" id="am-name" placeholder="Ex : LCL, Livret A, Espèces…"/></div>
     </div>
     <div id="am-ep-picker" style="display:none;margin-bottom:14px;"><input type="text" class="ipsearch" id="am-isearch" placeholder="Rechercher une icône…" oninput="buildIconGrid('am')"/><div class="ichips" id="am-ichips"></div><div class="emoji-grid icon-grid" id="am-eg"></div></div>
-    <div class="fgroup"><label class="flabel">Type</label><select id="am-type"><option value="courant">Compte courant</option><option value="epargne">Épargne</option><option value="especes">Espèces</option></select></div>
+    <div class="fgroup"><label class="flabel">Type</label><select id="am-type"><option value="courant">Compte courant</option><option value="epargne">Épargne</option><option value="especes">Espèces</option><option value="titres">Titres restaurant</option><option value="invest">Investissement</option></select></div>
     <div class="fgroup"><label class="flabel">Solde actuel (€)</label><input type="number" id="am-balance" step="0.01" inputmode="decimal" placeholder="0,00"/><div style="font-size:12px;color:var(--t2);line-height:1.4;margin-top:6px;" id="am-balance-hint">Le solde réel du compte aujourd’hui. Les opérations que tu lui affectes le feront évoluer.</div></div>
     <div class="btn-row"><button class="btn btn-ghost" onclick="closeModal('account-modal')">Annuler</button><button class="btn btn-p" onclick="saveAccount()">Enregistrer</button></div>
     <button class="btn btn-danger" id="acm-del" style="display:none;margin-top:8px;" onclick="deleteAccount()">🗑 Supprimer</button>
@@ -1331,6 +1346,7 @@ let accountsEnabled = false;
 let FRIENDS = []; let friendsEnabled = false;
 let SPACES = []; let spacesEnabled = false; let curSpaceId = null;
 let activeSpace = null; let spaceColsEnabled = false; let spaceColsProbed = false;
+let transfersEnabled = false; let transfersProbed = false; let editingTransferId = null;
 const NOW = new Date();
 let vY = NOW.getFullYear(), vM = NOW.getMonth();
 
@@ -1548,6 +1564,7 @@ async function loadAllData(){
   setSyncState('syncing');
   try{
     await ensureSpaceCols();
+    await ensureTransferCol();
     if(spaceColsEnabled){await loadSpacesQuiet();validateActiveSpace();}else{activeSpace=null;}
     const uid=currentUser.id;
     const scope=function(q){return activeSpace?q.eq('space_id',activeSpace):(spaceColsEnabled?q.eq('user_id',uid).is('space_id',null):q.eq('user_id',uid));};
@@ -1939,6 +1956,7 @@ async function addTransaction(){
 let editingTxId=null;
 function openTxEdit(id){
   const t=TX.find(t=>t.id==id);if(!t)return;
+  if(t.type==='transfer'){openTransferModal(t.id);return;}
   editingTxId=id;
   document.getElementById('tx-modal-title').textContent=t.auto?'Modifier (ce mois uniquement)':'Modifier';
   document.getElementById('tx-modal-sub').textContent=t.auto?'(!) Modifie uniquement cette occurrence, pas le récurrent.':'';
@@ -1992,7 +2010,7 @@ async function deleteTx(){
 function calcTotals(){
   let rev=0,dep=0,savIn=0,savOut=0;
   // Only count confirmed transactions in balance
-  txForMonth().filter(t=>t.status!=='pending').forEach(t=>{
+  txForMonth().filter(t=>t.status!=='pending'&&t.type!=='transfer').forEach(t=>{
     if(t.sav_type==='in'){
       savIn+=t.amount;
     }else if(t.sav_type==='out'){
@@ -2039,7 +2057,7 @@ function updateHome(){
   const endLbl='à fin '+moLbl;
   // KPI : Cash disponible = Σ revenus - Σ dépenses jusqu'à la fin du mois affiché
   // (les virements vers épargne réduisent le cash, les retraits l'augmentent).
-  const cashDispo=TX.filter(t=>t.status!=='pending'&&inScope(t)).reduce((s,t)=>s+(t.type==='rev'?t.amount:-t.amount),0);
+  const cashDispo=TX.filter(t=>t.status!=='pending'&&t.type!=='transfer'&&inScope(t)).reduce((s,t)=>s+(t.type==='rev'?t.amount:-t.amount),0);
   document.getElementById('k-cash').textContent=fmt(cashDispo);
   document.querySelector('#k-cash').nextElementSibling.textContent=endLbl;
   // KPI : Patrimoine = cash disponible + épargne cumulée (même borne temporelle)
@@ -2060,6 +2078,7 @@ function updateHome(){
   const mTx=txForMonth();
   if(!mTx.length){c.innerHTML='<div class="empty"><div class="ei">💳</div>Aucune transaction pour ce mois.</div>';return}
   mTx.forEach(t=>{
+    if(t.type==='transfer'){c.appendChild(renderTransferRow(t));return;}
     const cat=catOf(t.cat);const d=document.createElement('div');d.className='tx-item';
     const isSavIn=t.sav_type==='in';
     const isSavOut=t.sav_type==='out';
@@ -2626,6 +2645,7 @@ function renderSearchResults(results,rawQ){
     return;
   }
   results.forEach(function(t){
+    if(t.type==='transfer'){var tr=renderTransferRow(t);tr.onclick=function(){closeModal('search-modal');openTxFromSearch(t);};box.appendChild(tr);return;}
     var cat=catOf(t.cat);
     var isSavIn=t.sav_type==='in',isSavOut=t.sav_type==='out';
     var dObj=t.date?new Date(t.date+'T12:00:00'):null;
@@ -2819,10 +2839,21 @@ async function propagateRecurToFuture(r){
 // (revenu = +, dépense = -). "Ajuster" un compte = fixer son solde actuel, on
 // recalcule alors le solde de départ. Additif : aucun KPI existant n'est modifié.
 let editingAccountId=null;
+function accountTxSum(accId){
+  var s=0;
+  for(var i=0;i<TX.length;i++){
+    var t=TX[i];
+    if(t.type==='transfer'){
+      if(String(t.account_id)===String(accId))s-=t.amount;
+      if(String(t.to_account_id)===String(accId))s+=t.amount;
+    }else if(String(t.account_id)===String(accId)){
+      s+=(t.type==='rev'?t.amount:-t.amount);
+    }
+  }
+  return s;
+}
 function accountBalance(acc){
-  var bal=acc.opening_balance||0;
-  for(var i=0;i<TX.length;i++){var t=TX[i];if(String(t.account_id)===String(acc.id))bal+=(t.type==='rev'?t.amount:-t.amount);}
-  return bal;
+  return (acc.opening_balance||0)+accountTxSum(acc.id);
 }
 async function dbAddAccount(a){
   setSyncState('syncing');
@@ -2865,11 +2896,11 @@ function renderAccounts(){
   var total=0,rows='';
   ACCOUNTS.forEach(function(a){
     var bal=accountBalance(a);total+=bal;
-    var typeLbl=a.type==='epargne'?'Épargne':a.type==='especes'?'Espèces':'Compte courant';
+    var typeLbl=accountTypeLabel(a.type);
     rows+=`<div class="bank-account-item" style="cursor:pointer;" onclick="openAccountModal('${a.id}')"><div class="bank-account-icon">${catSVG(a.icon||'bank',bal<0?'#C5443A':'var(--pa)',20)}</div><div class="bank-account-info"><div class="bank-account-name">${a.name}</div><div class="bank-account-num">${typeLbl}</div></div><div class="bank-account-balance ${bal<0?'ds-red':''}">${bal>=0?'':'-'}${fmt(Math.abs(bal))}</div></div>`;
   });
   var body=ACCOUNTS.length?(rows+`<div style="display:flex;justify-content:space-between;padding:12px 0 0;border-top:.5px solid var(--b);margin-top:4px;font-weight:600;font-size:14px;"><span>Patrimoine (comptes)</span><span>${total>=0?'':'-'}${fmt(Math.abs(total))}</span></div>`):`<div class="empty" style="padding:18px 0;"><div class="ei">🏦</div>Aucun compte pour l’instant. Crée ton premier compte.</div>`;
-  box.innerHTML=`<div class="card"><div class="row-between" style="margin-bottom:12px;"><span class="sec-title" style="margin-bottom:0;">Mes comptes</span><button class="btn btn-p btn-sm" onclick="openAccountModal(null)">+ Nouveau compte</button></div>${body}</div>`;
+  box.innerHTML=`<div class="card"><div class="row-between" style="margin-bottom:12px;"><span class="sec-title" style="margin-bottom:0;">Mes comptes</span><div style="display:flex;gap:6px;"><button class="btn btn-ghost btn-sm" onclick="openTransferModal(null)">⇄ Virement</button><button class="btn btn-p btn-sm" onclick="openAccountModal(null)">+ Nouveau compte</button></div></div>${body}</div>`;
 }
 function openAccountModal(id){
   if(!accountsEnabled){toast(`(!) Active d’abord les comptes (SQL)`);return;}
@@ -2895,7 +2926,7 @@ async function saveAccount(){
   if(isNaN(wanted))wanted=0;
   if(editingAccountId){
     var a=ACCOUNTS.find(function(x){return String(x.id)===String(editingAccountId);});
-    var sumTx=0;for(var i=0;i<TX.length;i++){if(a&&String(TX[i].account_id)===String(a.id))sumTx+=(TX[i].type==='rev'?TX[i].amount:-TX[i].amount);}
+    var sumTx=a?accountTxSum(a.id):0;
     var opening=Math.round((wanted-sumTx)*100)/100;
     await dbUpdateAccount(editingAccountId,{name:name,type:type,icon:icon,opening_balance:opening});
   }else{
@@ -3183,6 +3214,78 @@ async function switchSpace(id){
   toast(activeSpace?'Espace ouvert':'Retour au perso');
 }
 
+// -- VIREMENTS INTERNES (entre comptes) --
+// Une transaction type:'transfer' : account_id = source (débité), to_account_id
+// = destination (crédité). Neutre pour le budget : exclue de tous les totaux.
+async function ensureTransferCol(){
+  if(transfersProbed)return;
+  transfersProbed=true;
+  try{var r=await supa.from('transactions').select('to_account_id').limit(1);transfersEnabled=!r.error;}catch(e){transfersEnabled=false;}
+}
+function accountTypeLabel(t){return t==='epargne'?'Épargne':t==='especes'?'Espèces':t==='titres'?'Titres restaurant':t==='invest'?'Investissement':'Compte courant';}
+var TRANSFER_SVG='<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--pa)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13l-3-3"/><path d="M20 16H7l3 3"/></svg>';
+function transferAccountName(id){var a=ACCOUNTS.find(function(x){return String(x.id)===String(id);});return a?a.name:'—';}
+function renderTransferRow(t){
+  var d=document.createElement('div');d.className='tx-item';d.style.cursor='pointer';
+  var ds=t.date?new Date(t.date+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'}):'';
+  var fromN=transferAccountName(t.account_id),toN=transferAccountName(t.to_account_id);
+  d.innerHTML='<div class="tx-ico" style="display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;flex-shrink:0;background:var(--pl);">'+TRANSFER_SVG+'</div>'
+    +'<div class="tx-info"><div class="tx-name">'+(t.description||'Virement interne')+'<span class="auto-tag">⇄ interne</span></div>'
+    +'<div class="tx-date">'+fromN+' → '+toN+' · '+ds+'</div></div>'
+    +'<div class="tx-amt" style="color:var(--t2);">'+fmt(t.amount)+'</div>';
+  d.onclick=function(){openTransferModal(t.id);};
+  return d;
+}
+function buildTransferSels(fromId,toId){
+  ['trm-from','trm-to'].forEach(function(sid,idx){
+    var s=document.getElementById(sid);if(!s)return;s.innerHTML='';
+    ACCOUNTS.forEach(function(a){var o=document.createElement('option');o.value=a.id;o.textContent=a.name+' ('+accountTypeLabel(a.type)+')';s.appendChild(o);});
+    var want=idx===0?fromId:toId;
+    if(want)s.value=want;else if(idx===1&&ACCOUNTS.length>1)s.selectedIndex=1;
+  });
+}
+function openTransferModal(id){
+  if(!accountsEnabled){toast(`(!) Active d'abord les comptes (SQL)`);return;}
+  if(!transfersEnabled){toast('(!) Colonne de virement non activée (SQL)');return;}
+  if(ACCOUNTS.length<2){toast('(!) Il faut au moins 2 comptes');return;}
+  if(!canWrite()){toast('(!) Lecture seule dans cet espace');return;}
+  editingTransferId=id||null;
+  var t=id?TX.find(function(x){return String(x.id)===String(id);}):null;
+  document.getElementById('trm-title').textContent=t?'Modifier le virement':'Virement interne';
+  buildTransferSels(t?t.account_id:null,t?t.to_account_id:null);
+  document.getElementById('trm-amount').value=t?t.amount:'';
+  document.getElementById('trm-desc').value=t?(t.description||''):'';
+  document.getElementById('trm-date').value=t?t.date:NOW.toISOString().split('T')[0];
+  document.getElementById('trm-del').style.display=t?'block':'none';
+  document.getElementById('transfer-modal').classList.add('open');
+}
+async function saveTransfer(){
+  var from=document.getElementById('trm-from').value,to=document.getElementById('trm-to').value;
+  var amount=parseFloat(document.getElementById('trm-amount').value);
+  var desc=document.getElementById('trm-desc').value.trim();
+  var date=document.getElementById('trm-date').value;
+  if(!from||!to){toast('(!) Choisis les deux comptes');return;}
+  if(from===to){toast('(!) Les deux comptes doivent être différents');return;}
+  if(!amount||amount<=0){toast('(!) Montant invalide');return;}
+  if(!date){toast('(!) Date manquante');return;}
+  var label=desc||('Virement '+transferAccountName(from)+' → '+transferAccountName(to));
+  if(editingTransferId){
+    await dbUpdateTx(editingTransferId,{amount:amount,description:label,date:date,account_id:from,to_account_id:to});
+    toast('OK Virement mis à jour');
+  }else{
+    await dbAddTx({type:'transfer',amount:amount,description:label,cat:'Virement interne',date:date,auto:false,account_id:from,to_account_id:to});
+    toast('OK Virement enregistré');
+  }
+  closeModal('transfer-modal');
+  updateAll();renderAccounts();
+}
+async function deleteTransfer(){
+  if(!editingTransferId)return;
+  await dbDeleteTx(editingTransferId);
+  closeModal('transfer-modal');toast('🗑 Virement supprimé');
+  updateAll();renderAccounts();
+}
+
 // -- PAGE NAV --
 function updateAll(){updateHome();updateBudget();refreshDupHint()}
 function goPage(name){
@@ -3206,7 +3309,7 @@ function expRows(){
   const to=document.getElementById('exp-to').value;
   const tf=document.getElementById('exp-type').value;
   if(!from||!to||from>to)return null;
-  let rows=TX.filter(t=>t.date&&t.date>=from&&t.date<=to);
+  let rows=TX.filter(t=>t.date&&t.date>=from&&t.date<=to&&t.type!=='transfer');
   rows=rows.filter(t=>{const sav=expIsSav(t);if(tf==='all')return true;if(tf==='sav')return sav;if(tf==='dep')return t.type==='dep'&&!sav;if(tf==='rev')return t.type==='rev'&&!sav;return true;});
   rows.sort((a,b)=>a.date<b.date?-1:(a.date>b.date?1:0));
   return rows;
@@ -3431,7 +3534,7 @@ function txForPeriod(){
 }
 function buildDash(){
   try{const cs=getComputedStyle(document.body);Chart.defaults.color=(cs.getPropertyValue('--t2')||'#74726A').trim();Chart.defaults.borderColor=(cs.getPropertyValue('--b')||'rgba(0,0,0,.1)').trim();}catch(e){}
-  const txs=txForPeriod();let rev=0,dep=0;txs.forEach(t=>{if(t.type==='rev')rev+=t.amount;else dep+=t.amount});
+  const txs=txForPeriod().filter(t=>t.type!=='transfer');let rev=0,dep=0;txs.forEach(t=>{if(t.type==='rev')rev+=t.amount;else dep+=t.amount});
   const savings=rev-dep;
   const byCat={};txs.filter(t=>t.type==='dep').forEach(t=>{byCat[t.cat]=(byCat[t.cat]||0)+t.amount});
   document.getElementById('dash-stats').innerHTML=`
@@ -3440,7 +3543,7 @@ function buildDash(){
     <div class="dash-stat"><div class="ds-label">Solde</div><div class="ds-val ${savings>=0?'ds-green':'ds-red'}">${savings>=0?'+':''}${fmt(savings)}</div></div>
     <div class="dash-stat"><div class="ds-label">Transactions</div><div class="ds-val">${txs.length}</div></div>`;
   const labels=[],rData=[],dData=[];
-  for(let i=5;i>=0;i--){let m=vM-i,y=vY;if(m<0){m+=12;y--}const k=mKey(y,m);const lbl=new Date(y,m,1).toLocaleDateString('fr-FR',{month:'short'});labels.push(lbl.charAt(0).toUpperCase()+lbl.slice(1));let r=0,d=0;TX.filter(t=>txMonthKey(t)===k).forEach(t=>{if(t.type==='rev')r+=t.amount;else d+=t.amount});rData.push(Math.round(r));dData.push(Math.round(d))}
+  for(let i=5;i>=0;i--){let m=vM-i,y=vY;if(m<0){m+=12;y--}const k=mKey(y,m);const lbl=new Date(y,m,1).toLocaleDateString('fr-FR',{month:'short'});labels.push(lbl.charAt(0).toUpperCase()+lbl.slice(1));let r=0,d=0;TX.filter(t=>txMonthKey(t)===k&&t.type!=='transfer').forEach(t=>{if(t.type==='rev')r+=t.amount;else d+=t.amount});rData.push(Math.round(r));dData.push(Math.round(d))}
   if(dashBarChart)dashBarChart.destroy();
   dashBarChart=new Chart(document.getElementById('dash-bar'),{type:'bar',data:{labels,datasets:[{label:'Revenus',data:rData,backgroundColor:'#1F7A4D',borderRadius:4},{label:'Dépenses',data:dData,backgroundColor:'#C8553D',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{ticks:{callback:v=>v+'€'}}}}});
   const cats=Object.keys(byCat).filter(c=>byCat[c]>0);const vals=cats.map(c=>Math.round(byCat[c]));const cols=cats.map(c=>catOf(c).color||'#888780');const total=vals.reduce((a,b)=>a+b,0);
@@ -3452,7 +3555,7 @@ function buildDash(){
   }
   if(dashLine)dashLine.destroy();
   const ll=[],lr=[],ld=[];
-  for(let i=5;i>=0;i--){let m=vM-i,y=vY;if(m<0){m+=12;y--}const k=mKey(y,m);const lbl=new Date(y,m,1).toLocaleDateString('fr-FR',{month:'short'});ll.push(lbl.charAt(0).toUpperCase()+lbl.slice(1));let r=0,d=0;TX.filter(t=>txMonthKey(t)===k).forEach(t=>{if(t.type==='rev')r+=t.amount;else d+=t.amount});lr.push(Math.round(r));ld.push(Math.round(d))}
+  for(let i=5;i>=0;i--){let m=vM-i,y=vY;if(m<0){m+=12;y--}const k=mKey(y,m);const lbl=new Date(y,m,1).toLocaleDateString('fr-FR',{month:'short'});ll.push(lbl.charAt(0).toUpperCase()+lbl.slice(1));let r=0,d=0;TX.filter(t=>txMonthKey(t)===k&&t.type!=='transfer').forEach(t=>{if(t.type==='rev')r+=t.amount;else d+=t.amount});lr.push(Math.round(r));ld.push(Math.round(d))}
   dashLine=new Chart(document.getElementById('dash-line'),{type:'line',data:{labels:ll,datasets:[{label:'Revenus',data:lr,borderColor:'#1F7A4D',backgroundColor:'rgba(31,122,77,.12)',fill:true,tension:.4,pointRadius:2},{label:'Dépenses',data:ld,borderColor:'#C8553D',backgroundColor:'rgba(200,85,61,.12)',fill:true,tension:.4,pointRadius:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{ticks:{callback:v=>v+'€'}}}}});
 }
 
